@@ -1,0 +1,57 @@
+package com.gopisvdev.url_shortener.service;
+
+import com.gopisvdev.url_shortener.entity.ShortUrl;
+import com.gopisvdev.url_shortener.repository.ShortUrlRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+
+public class UrlService {
+
+    @Autowired
+    public ShortUrlRepository repository;
+
+    private final String Base62 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    private final int CODE_LENGTH = 6;
+
+    public ShortUrl createShortUrl(String originalUrl, String customCode, LocalDateTime expirationDate) {
+        String code = (customCode != null && !customCode.isEmpty()) ? customCode : generateCode();
+
+        if (repository.existsByShortCode(code)) {
+            throw new IllegalArgumentException("Short code already exists.");
+        }
+
+        ShortUrl url = new ShortUrl();
+        url.setShortCode(code);
+        url.setOriginalUrl(originalUrl);
+        url.setExpirationDate(expirationDate);
+        url.setCreatedAt(LocalDateTime.now());
+
+        return repository.save(url);
+    }
+
+    public String generateCode() {
+        SecureRandom random = new SecureRandom();
+        StringBuilder stringBuilder = new StringBuilder(CODE_LENGTH);
+
+        for (int i = 0; i < CODE_LENGTH; i++) {
+            int index = random.nextInt(Base62.length());
+            stringBuilder.append(Base62.charAt(index));
+        }
+        return stringBuilder.toString();
+    }
+
+    public ShortUrl getByCode(String code) {
+        ShortUrl url = repository.findByShortCode(code).orElseThrow(() -> new RuntimeException("Url not found"));
+
+        if (url.getExpirationDate() != null && url.getExpirationDate().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Short URL has expired.");
+        }
+
+        url.setClickCount(url.getClickCount() + 1);
+        repository.save(url);
+
+        return url;
+    }
+}
