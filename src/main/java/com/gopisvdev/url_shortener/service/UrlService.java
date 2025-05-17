@@ -3,10 +3,12 @@ package com.gopisvdev.url_shortener.service;
 import com.gopisvdev.url_shortener.entity.ShortUrl;
 import com.gopisvdev.url_shortener.repository.ShortUrlRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 
+@Service
 public class UrlService {
 
     @Autowired
