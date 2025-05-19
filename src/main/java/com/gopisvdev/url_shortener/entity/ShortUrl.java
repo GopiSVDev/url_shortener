@@ -27,9 +27,10 @@ public class ShortUrl {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String originalUrl;
 
-    private LocalDateTime expirationDate;
-
+    @Column(nullable = false)
     private Long clickCount = 0L;
-
+    
+    private LocalDateTime expirationDate;
     private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime updatedAt;
 }

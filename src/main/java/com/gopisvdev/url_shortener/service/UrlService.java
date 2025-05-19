@@ -1,7 +1,9 @@
 package com.gopisvdev.url_shortener.service;
 
 import com.gopisvdev.url_shortener.entity.ShortUrl;
+import com.gopisvdev.url_shortener.exception.ShortUrlNotFoundException;
 import com.gopisvdev.url_shortener.repository.ShortUrlRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -41,19 +43,45 @@ public class UrlService {
             int index = random.nextInt(Base62.length());
             stringBuilder.append(Base62.charAt(index));
         }
+
         return stringBuilder.toString();
     }
 
-    public ShortUrl getByCode(String code) {
-        ShortUrl url = repository.findByShortCode(code).orElseThrow(() -> new RuntimeException("Url not found"));
+    @Transactional
+    public ShortUrl incrementClickAndGet(String code) {
+        ShortUrl url = repository.findByShortCode(code).orElseThrow(() -> new ShortUrlNotFoundException("Url not found"));
 
         if (url.getExpirationDate() != null && url.getExpirationDate().isBefore(LocalDateTime.now())) {
             throw new RuntimeException("Short URL has expired.");
         }
 
+        System.out.println("Reached Here  " + url.getClickCount());
         url.setClickCount(url.getClickCount() + 1);
+        System.out.println("Crossed here  " + url.getClickCount());
         repository.save(url);
 
         return url;
+    }
+
+    public ShortUrl getByCode(String code) {
+        ShortUrl url = repository.findByShortCode(code).orElseThrow(() -> new ShortUrlNotFoundException("Url not found"));
+
+        if (url.getExpirationDate() != null && url.getExpirationDate().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Short URL has expired.");
+        }
+        
+        return url;
+    }
+
+
+    @Transactional
+    public ShortUrl save(ShortUrl shortUrl) {
+        return repository.save(shortUrl);
+    }
+
+    public void delete(String code) {
+        ShortUrl url = repository.findByShortCode(code).orElseThrow(() -> new RuntimeException("Url not found"));
+
+        repository.delete(url);
     }
 }
