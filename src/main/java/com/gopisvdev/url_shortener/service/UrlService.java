@@ -1,5 +1,7 @@
 package com.gopisvdev.url_shortener.service;
 
+import com.gopisvdev.url_shortener.dto.ClickLogDto;
+import com.gopisvdev.url_shortener.dto.ShortUrlStatsDto;
 import com.gopisvdev.url_shortener.entity.ShortUrl;
 import com.gopisvdev.url_shortener.exception.ShortUrlNotFoundException;
 import com.gopisvdev.url_shortener.repository.ShortUrlRepository;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class UrlService {
@@ -47,19 +50,6 @@ public class UrlService {
         return stringBuilder.toString();
     }
 
-    @Transactional
-    public ShortUrl incrementClickAndGet(String code) {
-        ShortUrl url = repository.findByShortCode(code).orElseThrow(() -> new ShortUrlNotFoundException("Url not found"));
-
-        if (url.getExpirationDate() != null && url.getExpirationDate().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Short URL has expired.");
-        }
-
-        url.setClickCount(url.getClickCount() + 1);
-        repository.save(url);
-
-        return url;
-    }
 
     public ShortUrl getByCode(String code) {
         ShortUrl url = repository.findByShortCode(code).orElseThrow(() -> new ShortUrlNotFoundException("Url not found"));
@@ -83,5 +73,27 @@ public class UrlService {
         repository.delete(url);
     }
 
-    
+    public ShortUrlStatsDto mapToStatsDto(ShortUrl shortUrl) {
+        ShortUrlStatsDto dto = new ShortUrlStatsDto();
+        dto.setOriginalUrl(shortUrl.getOriginalUrl());
+        dto.setShortCode(shortUrl.getShortCode());
+        dto.setClickCount(shortUrl.getClickCount());
+        dto.setCreatedAt(shortUrl.getCreatedAt());
+        dto.setUpdatedAt(shortUrl.getUpdatedAt());
+        dto.setExpirationDate(shortUrl.getExpirationDate());
+
+        List<ClickLogDto> logs = shortUrl.getClickLogs().stream().map(log -> {
+            ClickLogDto logDto = new ClickLogDto();
+            logDto.setIp(log.getIp());
+            logDto.setClickedAt(log.getClickedAt());
+            logDto.setCountry(log.getCountry());
+            logDto.setRegion(log.getRegion());
+            logDto.setCity(log.getCity());
+            logDto.setDeviceType(log.getDeviceType());
+            return logDto;
+        }).toList();
+
+        dto.setClickLogs(logs);
+        return dto;
+    }
 }

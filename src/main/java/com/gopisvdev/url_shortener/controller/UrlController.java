@@ -1,20 +1,18 @@
 package com.gopisvdev.url_shortener.controller;
 
+import com.gopisvdev.url_shortener.dto.ShortUrlDto;
+import com.gopisvdev.url_shortener.dto.ShortUrlStatsDto;
 import com.gopisvdev.url_shortener.dto.UrlRequest;
 import com.gopisvdev.url_shortener.entity.ShortUrl;
 import com.gopisvdev.url_shortener.exception.ShortUrlNotFoundException;
 import com.gopisvdev.url_shortener.service.RateLimiterService;
 import com.gopisvdev.url_shortener.service.UrlService;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.IOException;
-import java.net.URI;
 import java.time.LocalDateTime;
 
 @RestController
@@ -39,33 +37,14 @@ public class UrlController {
     public ResponseEntity<?> getUrl(@PathVariable String code) {
         try {
             ShortUrl shortUrl = service.getByCode(code);
-            return ResponseEntity.ok(shortUrl);
+
+            ShortUrlDto dto = new ShortUrlDto(shortUrl);
+            return ResponseEntity.ok(dto);
         } catch (ShortUrlNotFoundException exception) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found");
         }
     }
 
-    @GetMapping("/r/{code}")
-    public ResponseEntity<?> redirect(@PathVariable String code, HttpServletRequest request) throws IOException {
-        String ip = rateLimiterService.getClientIp(request);
-        ShortUrl shortUrl;
-
-        System.out.println(ip);
-
-        try {
-            if (rateLimiterService.shouldCountClick(ip, code)) {
-                shortUrl = service.incrementClickAndGet(code);
-            } else {
-                shortUrl = service.getByCode(code);
-            }
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setLocation(URI.create(shortUrl.getOriginalUrl()));
-            return new ResponseEntity<>(headers, HttpStatus.TEMPORARY_REDIRECT);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
-    }
 
     @PutMapping("/shorten/{code}")
     public ResponseEntity<?> updateUrl(@PathVariable String code, @RequestBody UrlRequest request) {
@@ -82,7 +61,8 @@ public class UrlController {
         }
 
         service.save(existing);
-        return ResponseEntity.ok(existing);
+        ShortUrlDto dto = new ShortUrlDto(existing);
+        return ResponseEntity.ok(dto);
     }
 
     @DeleteMapping("/shorten/{code}")
@@ -100,9 +80,11 @@ public class UrlController {
     public ResponseEntity<?> getStats(@PathVariable String code) {
         try {
             ShortUrl shortUrl = service.getByCode(code);
-            return ResponseEntity.ok(shortUrl);
+            ShortUrlStatsDto statsDto = service.mapToStatsDto(shortUrl);
+
+            return ResponseEntity.ok(statsDto);
         } catch (ShortUrlNotFoundException exception) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Stats for URL not found");
         }
     }
 }
