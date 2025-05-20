@@ -10,10 +10,12 @@ import com.gopisvdev.url_shortener.service.UrlService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 public class UrlController {
@@ -76,6 +78,7 @@ public class UrlController {
         return ResponseEntity.ok("Deleted");
     }
 
+
     @GetMapping("/shorten/{code}/stats")
     public ResponseEntity<?> getStats(@PathVariable String code) {
         try {
@@ -86,5 +89,12 @@ public class UrlController {
         } catch (ShortUrlNotFoundException exception) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Stats for URL not found");
         }
+    }
+
+    @GetMapping("/user/urls")
+    public ResponseEntity<List<ShortUrlDto>> getUserUrls(Authentication authentication) {
+        String username = authentication.getName();
+        List<ShortUrlDto> dtoList = service.getUserUrls(username);
+        return ResponseEntity.ok(dtoList);
     }
 }

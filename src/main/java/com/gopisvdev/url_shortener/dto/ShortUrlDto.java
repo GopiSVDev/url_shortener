@@ -26,4 +26,15 @@ public class ShortUrlDto {
         this.createdAt = shortUrl.getCreatedAt();
         this.updatedAt = shortUrl.getUpdatedAt();
     }
+
+    public static ShortUrlDto fromEntity(ShortUrl entity) {
+        ShortUrlDto dto = new ShortUrlDto();
+        dto.setId(entity.getId());
+        dto.setShortCode(entity.getShortCode());
+        dto.setOriginalUrl(entity.getOriginalUrl());
+        dto.setCreatedAt(entity.getCreatedAt());
+        dto.setUpdatedAt(entity.getUpdatedAt());
+ 
+        return dto;
+    }
 }

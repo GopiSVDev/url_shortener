@@ -1,12 +1,18 @@
 package com.gopisvdev.url_shortener.service;
 
 import com.gopisvdev.url_shortener.dto.ClickLogDto;
+import com.gopisvdev.url_shortener.dto.ShortUrlDto;
 import com.gopisvdev.url_shortener.dto.ShortUrlStatsDto;
 import com.gopisvdev.url_shortener.entity.ShortUrl;
+import com.gopisvdev.url_shortener.entity.User;
 import com.gopisvdev.url_shortener.exception.ShortUrlNotFoundException;
 import com.gopisvdev.url_shortener.repository.ShortUrlRepository;
+import com.gopisvdev.url_shortener.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -19,6 +25,9 @@ public class UrlService {
     @Autowired
     public ShortUrlRepository repository;
 
+    @Autowired
+    public UserRepository userRepository;
+
     private final String Base62 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private final int CODE_LENGTH = 6;
 
@@ -29,11 +38,16 @@ public class UrlService {
             throw new IllegalArgumentException("Short code already exists.");
         }
 
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+        User user = userRepository.findByUsername(username).orElse(null);
+
         ShortUrl url = new ShortUrl();
         url.setShortCode(code);
         url.setOriginalUrl(originalUrl);
         url.setExpirationDate(expirationDate);
         url.setCreatedAt(LocalDateTime.now());
+        if (user != null) url.setCreatedBy(user);
 
         return repository.save(url);
     }
@@ -95,5 +109,16 @@ public class UrlService {
 
         dto.setClickLogs(logs);
         return dto;
+    }
+
+    public List<ShortUrlDto> getUserUrls(String username) {
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user == null) {
+            throw new UsernameNotFoundException("User not found: " + username);
+        }
+        List<ShortUrl> urls = repository.findAllByCreatedBy(user);
+        return urls.stream()
+                .map(ShortUrlDto::fromEntity)
+                .toList();
     }
 }
