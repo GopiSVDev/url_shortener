@@ -1,5 +1,6 @@
 package com.gopisvdev.url_shortener.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -13,7 +14,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "short_urls", indexes = {
-        @Index(name = "idx_short_code", columnList = "shortCode", unique = true)
+        @Index(name = "idx_short_code", columnList = "short_code", unique = true)
 })
 @Getter
 @Setter
@@ -24,7 +25,7 @@ public class ShortUrl {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "short_code", nullable = false)
     private String shortCode;
 
     @Column(nullable = false, columnDefinition = "TEXT")
@@ -43,5 +44,6 @@ public class ShortUrl {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
+    @JsonBackReference
     private User createdBy;
 }

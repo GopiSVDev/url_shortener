@@ -18,5 +18,4 @@ public class ClickLogDto {
     private String region;
     private String city;
     private String deviceType;
-
 }

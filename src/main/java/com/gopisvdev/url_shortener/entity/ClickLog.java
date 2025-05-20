@@ -26,7 +26,7 @@ public class ClickLog {
     @JoinColumn(name = "short_url_id", nullable = false)
     @JsonBackReference
     private ShortUrl shortUrl;
-
+    
     private LocalDateTime clickedAt = LocalDateTime.now();
 
     private String ip;

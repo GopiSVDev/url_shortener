@@ -1,7 +1,6 @@
 package com.gopisvdev.url_shortener.controller;
 
 import com.gopisvdev.url_shortener.dto.ShortUrlDto;
-import com.gopisvdev.url_shortener.dto.ShortUrlStatsDto;
 import com.gopisvdev.url_shortener.dto.UrlRequest;
 import com.gopisvdev.url_shortener.entity.ShortUrl;
 import com.gopisvdev.url_shortener.exception.ShortUrlNotFoundException;
@@ -78,18 +77,6 @@ public class UrlController {
         return ResponseEntity.ok("Deleted");
     }
 
-
-    @GetMapping("/shorten/{code}/stats")
-    public ResponseEntity<?> getStats(@PathVariable String code) {
-        try {
-            ShortUrl shortUrl = service.getByCode(code);
-            ShortUrlStatsDto statsDto = service.mapToStatsDto(shortUrl);
-
-            return ResponseEntity.ok(statsDto);
-        } catch (ShortUrlNotFoundException exception) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Stats for URL not found");
-        }
-    }
 
     @GetMapping("/user/urls")
     public ResponseEntity<List<ShortUrlDto>> getUserUrls(Authentication authentication) {
