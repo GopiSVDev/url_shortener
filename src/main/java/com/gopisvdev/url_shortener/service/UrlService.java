@@ -55,9 +55,7 @@ public class UrlService {
             throw new RuntimeException("Short URL has expired.");
         }
 
-        System.out.println("Reached Here  " + url.getClickCount());
         url.setClickCount(url.getClickCount() + 1);
-        System.out.println("Crossed here  " + url.getClickCount());
         repository.save(url);
 
         return url;
@@ -69,7 +67,7 @@ public class UrlService {
         if (url.getExpirationDate() != null && url.getExpirationDate().isBefore(LocalDateTime.now())) {
             throw new RuntimeException("Short URL has expired.");
         }
-        
+
         return url;
     }
 
@@ -84,4 +82,6 @@ public class UrlService {
 
         repository.delete(url);
     }
+
+    
 }

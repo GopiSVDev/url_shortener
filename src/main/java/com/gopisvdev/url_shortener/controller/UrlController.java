@@ -3,7 +3,9 @@ package com.gopisvdev.url_shortener.controller;
 import com.gopisvdev.url_shortener.dto.UrlRequest;
 import com.gopisvdev.url_shortener.entity.ShortUrl;
 import com.gopisvdev.url_shortener.exception.ShortUrlNotFoundException;
+import com.gopisvdev.url_shortener.service.RateLimiterService;
 import com.gopisvdev.url_shortener.service.UrlService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,9 @@ import java.time.LocalDateTime;
 public class UrlController {
     @Autowired
     private UrlService service;
+
+    @Autowired
+    private RateLimiterService rateLimiterService;
 
     @PostMapping("/shorten")
     public ResponseEntity<?> createUrl(@RequestBody UrlRequest request) {
@@ -41,14 +46,22 @@ public class UrlController {
     }
 
     @GetMapping("/r/{code}")
-    public ResponseEntity<?> redirect(@PathVariable String code) throws IOException {
-        System.out.println("➡️ Redirect endpoint hit with code: " + code);
-        
+    public ResponseEntity<?> redirect(@PathVariable String code, HttpServletRequest request) throws IOException {
+        String ip = rateLimiterService.getClientIp(request);
+        ShortUrl shortUrl;
+
+        System.out.println(ip);
+
         try {
-            ShortUrl shortUrl = service.incrementClickAndGet(code);
+            if (rateLimiterService.shouldCountClick(ip, code)) {
+                shortUrl = service.incrementClickAndGet(code);
+            } else {
+                shortUrl = service.getByCode(code);
+            }
+
             HttpHeaders headers = new HttpHeaders();
             headers.setLocation(URI.create(shortUrl.getOriginalUrl()));
-            return new ResponseEntity<>(headers, HttpStatus.PERMANENT_REDIRECT);
+            return new ResponseEntity<>(headers, HttpStatus.TEMPORARY_REDIRECT);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
