@@ -1,9 +1,11 @@
 package com.gopisvdev.url_shortener.service;
 
 import com.gopisvdev.url_shortener.dto.ShortUrlDto;
+import com.gopisvdev.url_shortener.dto.UrlAnalyticsDto;
 import com.gopisvdev.url_shortener.entity.ShortUrl;
 import com.gopisvdev.url_shortener.entity.User;
 import com.gopisvdev.url_shortener.exception.ShortUrlNotFoundException;
+import com.gopisvdev.url_shortener.repository.ClickLogRepository;
 import com.gopisvdev.url_shortener.repository.ShortUrlRepository;
 import com.gopisvdev.url_shortener.repository.UserRepository;
 import jakarta.transaction.Transactional;
@@ -13,9 +15,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.AccessDeniedException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class UrlService {
@@ -25,6 +30,9 @@ public class UrlService {
 
     @Autowired
     public UserRepository userRepository;
+
+    @Autowired
+    public ClickLogRepository clickLogRepository;
 
     private final String Base62 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private final int CODE_LENGTH = 6;
@@ -85,7 +93,6 @@ public class UrlService {
         repository.delete(url);
     }
 
-
     public List<ShortUrlDto> getUserUrls(String username) {
         User user = userRepository.findByUsername(username).orElse(null);
         if (user == null) {
@@ -95,5 +102,35 @@ public class UrlService {
         return urls.stream()
                 .map(ShortUrlDto::fromEntity)
                 .toList();
+    }
+
+    public UrlAnalyticsDto getStatsForUrl(String code, String username) throws AccessDeniedException {
+        ShortUrl shortUrl = repository.findByShortCode(code).orElseThrow(() -> new ShortUrlNotFoundException("Url Not Found"));
+
+        if (!shortUrl.getCreatedBy().getUsername().equals(username)) {
+            throw new AccessDeniedException("Unauthorized Access");
+        }
+
+        List<Object[]> byDate = clickLogRepository.countClicksOverTime(shortUrl);
+        List<Object[]> byDevice = clickLogRepository.countClicksByDeviceType(shortUrl);
+        List<Object[]> byCity = clickLogRepository.countClicksByCity(shortUrl);
+        List<Object[]> byCountry = clickLogRepository.countClicksByCountry(shortUrl);
+
+        UrlAnalyticsDto dto = new UrlAnalyticsDto();
+        dto.setClicksByCity(toMap(byCity));
+        dto.setClicksByDate(toMap(byDate));
+        dto.setClicksByDeviceType(toMap(byDevice));
+        dto.setClicksByCountry(toMap(byCountry));
+
+        return dto;
+    }
+
+    private Map<String, Long> toMap(List<Object[]> list) {
+        return list.stream()
+                .filter(obj -> obj[0] != null)
+                .collect(Collectors.toMap(
+                        obj -> obj[0].toString(),
+                        obj -> (Long) obj[1]
+                ));
     }
 }

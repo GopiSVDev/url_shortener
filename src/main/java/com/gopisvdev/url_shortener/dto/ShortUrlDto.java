@@ -19,7 +19,6 @@ public class ShortUrlDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    private long
     public ShortUrlDto(ShortUrl shortUrl) {
         this.id = shortUrl.getId();
         this.originalUrl = shortUrl.getOriginalUrl();

@@ -1,9 +1,9 @@
 package com.gopisvdev.url_shortener.controller;
 
 import com.gopisvdev.url_shortener.dto.ShortUrlDto;
+import com.gopisvdev.url_shortener.dto.UrlAnalyticsDto;
 import com.gopisvdev.url_shortener.dto.UrlRequest;
 import com.gopisvdev.url_shortener.entity.ShortUrl;
-import com.gopisvdev.url_shortener.exception.ShortUrlNotFoundException;
 import com.gopisvdev.url_shortener.service.RateLimiterService;
 import com.gopisvdev.url_shortener.service.UrlService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -31,18 +32,6 @@ public class UrlController {
             return ResponseEntity.ok(shortUrl);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        }
-    }
-
-    @GetMapping("/shorten/{code}")
-    public ResponseEntity<?> getUrl(@PathVariable String code) {
-        try {
-            ShortUrl shortUrl = service.getByCode(code);
-
-            ShortUrlDto dto = new ShortUrlDto(shortUrl);
-            return ResponseEntity.ok(dto);
-        } catch (ShortUrlNotFoundException exception) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found");
         }
     }
 
@@ -83,5 +72,27 @@ public class UrlController {
         String username = authentication.getName();
         List<ShortUrlDto> dtoList = service.getUserUrls(username);
         return ResponseEntity.ok(dtoList);
+    }
+
+    @GetMapping("/user/urls/{code}")
+    public ResponseEntity<?> getUserUrl(@PathVariable String code, Authentication authentication) {
+
+        String username = authentication.getName();
+        ShortUrl shortUrl = service.getByCode(code);
+
+        if (!shortUrl.getCreatedBy().getUsername().equals(username)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+        }
+
+        return ResponseEntity.ok(ShortUrlDto.fromEntity(shortUrl));
+    }
+
+
+    @GetMapping("/user/urls/{code}/stats")
+    public ResponseEntity<UrlAnalyticsDto> getStatsForUrl(@PathVariable String code, Authentication authentication) throws AccessDeniedException {
+        String username = authentication.getName();
+        UrlAnalyticsDto stats = service.getStatsForUrl(code, username);
+
+        return ResponseEntity.ok(stats);
     }
 }
