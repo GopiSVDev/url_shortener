@@ -57,6 +57,9 @@ public class UrlService {
             code = generateCode();
         }
 
+        if (!originalUrl.startsWith("http://") && !originalUrl.startsWith("https://")) {
+            originalUrl = "https://" + originalUrl;
+        }
 
         if (!isValidUrl(originalUrl)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid URL format");
