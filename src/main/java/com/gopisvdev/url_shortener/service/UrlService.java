@@ -10,16 +10,22 @@ import com.gopisvdev.url_shortener.repository.ShortUrlRepository;
 import com.gopisvdev.url_shortener.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.AccessDeniedException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,8 +43,24 @@ public class UrlService {
     private final String Base62 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private final int CODE_LENGTH = 6;
 
+    private static final Pattern CUSTOM_CODE_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]{3,30}$");
+    private static final Set<String> RESERVED_WORDS = Set.of(
+            "login", "api", "user", "register", "shorten", "qr"
+    );
+
     public ShortUrl createShortUrl(String originalUrl, String customCode, LocalDateTime expirationDate) {
-        String code = (customCode != null && !customCode.isEmpty()) ? customCode : generateCode();
+        String code;
+        if (customCode != null && !customCode.isEmpty()) {
+            validateCustomCode(customCode);
+            code = customCode;
+        } else {
+            code = generateCode();
+        }
+
+
+        if (!isValidUrl(originalUrl)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid URL format");
+        }
 
         if (repository.existsByShortCode(code)) {
             throw new IllegalArgumentException("Short code already exists.");
@@ -56,6 +78,32 @@ public class UrlService {
         if (user != null) url.setCreatedBy(user);
 
         return repository.save(url);
+    }
+
+    private boolean isValidUrl(String url) {
+        try {
+            URI uri = new URI(url);
+            return uri.getScheme() != null &&
+                    (uri.getScheme().equals("http") || uri.getScheme().equals("https")) &&
+                    uri.getHost() != null;
+        } catch (URISyntaxException e) {
+            return false;
+        }
+    }
+
+    private void validateCustomCode(String customCode) {
+        if (customCode == null || customCode.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Custom code cannot be blank");
+        }
+
+        if (!CUSTOM_CODE_PATTERN.matcher(customCode).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Custom code must be 3-30 characters, alphanumeric or _/-");
+        }
+
+        if (RESERVED_WORDS.contains(customCode.toLowerCase())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Custom code is reserved");
+        }
     }
 
     public String generateCode() {
