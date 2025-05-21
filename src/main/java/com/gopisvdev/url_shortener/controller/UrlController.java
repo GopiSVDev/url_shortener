@@ -4,6 +4,7 @@ import com.gopisvdev.url_shortener.dto.ShortUrlDto;
 import com.gopisvdev.url_shortener.dto.UrlAnalyticsDto;
 import com.gopisvdev.url_shortener.dto.UrlRequest;
 import com.gopisvdev.url_shortener.entity.ShortUrl;
+import com.gopisvdev.url_shortener.exception.ShortUrlNotFoundException;
 import com.gopisvdev.url_shortener.service.RateLimiterService;
 import com.gopisvdev.url_shortener.service.UrlService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,10 +38,14 @@ public class UrlController {
 
 
     @PutMapping("/shorten/{code}")
-    public ResponseEntity<?> updateUrl(@PathVariable String code, @RequestBody UrlRequest request) {
+    public ResponseEntity<?> updateUrl(@PathVariable String code, @RequestBody UrlRequest request, Authentication authentication) {
         ShortUrl existing = service.getByCode(code);
         if (existing == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            throw new ShortUrlNotFoundException("URL NOT FOUND");
+        }
+        String username = authentication.getName();
+        if (!existing.getCreatedBy().getUsername().equals(username)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not authorized to update this URL");
         }
 
         existing.setOriginalUrl(request.getOriginalUrl());
@@ -56,10 +61,15 @@ public class UrlController {
     }
 
     @DeleteMapping("/shorten/{code}")
-    public ResponseEntity<?> deleteUrl(@PathVariable String code) {
+    public ResponseEntity<?> deleteUrl(@PathVariable String code, Authentication authentication) {
         ShortUrl existing = service.getByCode(code);
         if (existing == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            throw new ShortUrlNotFoundException("URL NOT FOUND");
+        }
+
+        String username = authentication.getName();
+        if (!existing.getCreatedBy().getUsername().equals(username)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not authorized to delete this URL");
         }
 
         service.delete(code);
