@@ -35,9 +35,36 @@ public class UrlController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         }
     }
+    
+    @GetMapping("/user/urls")
+    public ResponseEntity<List<ShortUrlDto>> getUserUrls(Authentication authentication) {
+        String username = authentication.getName();
+        List<ShortUrlDto> dtoList = service.getUserUrls(username);
+        return ResponseEntity.ok(dtoList);
+    }
 
+    @GetMapping("/user/urls/{code}")
+    public ResponseEntity<?> getUserUrl(@PathVariable String code, Authentication authentication) {
 
-    @PutMapping("/shorten/{code}")
+        String username = authentication.getName();
+        ShortUrl shortUrl = service.getByCode(code);
+
+        if (!shortUrl.getCreatedBy().getUsername().equals(username)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+        }
+
+        return ResponseEntity.ok(ShortUrlDto.fromEntity(shortUrl));
+    }
+
+    @GetMapping("/user/urls/{code}/stats")
+    public ResponseEntity<UrlAnalyticsDto> getStatsForUrl(@PathVariable String code, Authentication authentication) throws AccessDeniedException {
+        String username = authentication.getName();
+        UrlAnalyticsDto stats = service.getStatsForUrl(code, username);
+
+        return ResponseEntity.ok(stats);
+    }
+
+    @PutMapping("/user/urls/{code}")
     public ResponseEntity<?> updateUrl(@PathVariable String code, @RequestBody UrlRequest request, Authentication authentication) {
         ShortUrl existing = service.getByCode(code);
         if (existing == null) {
@@ -60,7 +87,7 @@ public class UrlController {
         return ResponseEntity.ok(dto);
     }
 
-    @DeleteMapping("/shorten/{code}")
+    @DeleteMapping("/user/urls/{code}")
     public ResponseEntity<?> deleteUrl(@PathVariable String code, Authentication authentication) {
         ShortUrl existing = service.getByCode(code);
         if (existing == null) {
@@ -74,35 +101,5 @@ public class UrlController {
 
         service.delete(code);
         return ResponseEntity.ok("Deleted");
-    }
-
-
-    @GetMapping("/user/urls")
-    public ResponseEntity<List<ShortUrlDto>> getUserUrls(Authentication authentication) {
-        String username = authentication.getName();
-        List<ShortUrlDto> dtoList = service.getUserUrls(username);
-        return ResponseEntity.ok(dtoList);
-    }
-
-    @GetMapping("/user/urls/{code}")
-    public ResponseEntity<?> getUserUrl(@PathVariable String code, Authentication authentication) {
-
-        String username = authentication.getName();
-        ShortUrl shortUrl = service.getByCode(code);
-
-        if (!shortUrl.getCreatedBy().getUsername().equals(username)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
-        }
-
-        return ResponseEntity.ok(ShortUrlDto.fromEntity(shortUrl));
-    }
-
-
-    @GetMapping("/user/urls/{code}/stats")
-    public ResponseEntity<UrlAnalyticsDto> getStatsForUrl(@PathVariable String code, Authentication authentication) throws AccessDeniedException {
-        String username = authentication.getName();
-        UrlAnalyticsDto stats = service.getStatsForUrl(code, username);
-
-        return ResponseEntity.ok(stats);
     }
 }
