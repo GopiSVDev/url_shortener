@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 // import { Button } from "@/components/ui/button";
 import { Menu, X, LogIn } from "lucide-react";
-import Container from "../ui/Container";
+import { Link } from "react-router-dom";
 
 export default function Navbar() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -20,7 +20,7 @@ export default function Navbar() {
   ];
 
   return (
-    <Container>
+    <>
       {/* Desktop Navbar */}
       <nav className="hidden md:flex items-center justify-between px-6 py-4 shadow">
         {/* Left - Logo */}
@@ -37,12 +37,12 @@ export default function Navbar() {
         <ul className="flex space-x-8">
           {navLinks.map(({ label, href }) => (
             <li key={label}>
-              <a
-                href={href}
+              <Link
+                to={href}
                 className="text-gray-700 hover:text-blue-600 transition"
               >
                 {label}
-              </a>
+              </Link>
             </li>
           ))}
         </ul>
@@ -57,15 +57,15 @@ export default function Navbar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-40 mt-2">
             <DropdownMenuItem asChild>
-              <a href="/login" className="flex items-center gap-2 w-full">
-                <LogIn size={16} /> Login
-              </a>
+              <Link to="/auth" className="flex items-center gap-2 w-full">
+                Login
+              </Link>
             </DropdownMenuItem>
 
             <DropdownMenuItem asChild>
-              <a href="/login" className="flex items-center gap-2 w-full">
-                <LogIn size={16} /> Sign Up
-              </a>
+              <Link to="/auth" className="flex items-center gap-2 w-full">
+                Sign Up
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -111,7 +111,7 @@ export default function Navbar() {
           ))}
           <li>
             <a
-              href="/login"
+              href="/auth"
               className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition"
               onClick={() => setSidebarOpen(false)}
             >
@@ -128,6 +128,6 @@ export default function Navbar() {
           onClick={() => setSidebarOpen(false)}
         />
       )}
-    </Container>
+    </>
   );
 }
