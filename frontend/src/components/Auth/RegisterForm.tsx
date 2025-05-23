@@ -59,7 +59,7 @@ const RegisterForm = () => {
                   <FormControl>
                     <Input
                       className="bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0 dark:text-white"
-                      placeholder="Enter Username"
+                      placeholder="Enter New Username"
                       {...field}
                     />
                   </FormControl>

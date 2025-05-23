@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -6,12 +6,22 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-// import { Button } from "@/components/ui/button";
-import { Menu, X, LogIn } from "lucide-react";
+import { Menu, X, LogInIcon, UserPlus2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import Container from "../ui/Container";
 
 export default function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const navLinks = [
     { label: "Home", href: "/" },
@@ -22,65 +32,79 @@ export default function Navbar() {
   return (
     <>
       {/* Desktop Navbar */}
-      <nav className="hidden md:flex items-center justify-between px-6 py-4 shadow">
-        {/* Left - Logo */}
-        <div className="font-bold text-xl flex gap-2 items-center">
-          <img
-            src="/assets/icons/link.svg"
-            alt="Logo Icon"
-            className="w-6 h-6"
-          />
-          Shortener
-        </div>
+      <nav
+        className={`sticky top-0 z-50 transition-colors duration-300 w-full shadow ${
+          scrolled ? "bg-white" : "bg-blue-100"
+        } `}
+      >
+        <Container className="hidden md:flex items-center justify-between px-6 py-4">
+          {/* Left - Logo */}
+          <Link to="/">
+            <div className="font-bold text-xl flex gap-2 items-center">
+              <img
+                src="/assets/icons/link.svg"
+                alt="Logo Icon"
+                className="w-6 h-6"
+              />
+              Shortener
+            </div>
+          </Link>
 
-        {/* Center - Nav Links */}
-        <ul className="flex space-x-8">
-          {navLinks.map(({ label, href }) => (
-            <li key={label}>
-              <Link
-                to={href}
-                className="text-gray-700 hover:text-blue-600 transition"
-              >
-                {label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+          {/* Center - Nav Links */}
+          <ul className="flex space-x-8">
+            {navLinks.map(({ label, href }) => (
+              <li key={label}>
+                <Link
+                  to={href}
+                  className="text-gray-700 hover:text-blue-600 transition"
+                >
+                  {label}
+                </Link>
+              </li>
+            ))}
+          </ul>
 
-        {/* Right - Avatar Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Avatar className="cursor-pointer">
-              <AvatarImage src="/default-avatar.png" alt="User" />
-              <AvatarFallback>U</AvatarFallback>
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-40 mt-2">
-            <DropdownMenuItem asChild>
-              <Link to="/auth" className="flex items-center gap-2 w-full">
-                Login
-              </Link>
-            </DropdownMenuItem>
+          {/* Right - Avatar Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Avatar className="cursor-pointer">
+                <AvatarImage src="/default-avatar.png" alt="User" />
+                <AvatarFallback>U</AvatarFallback>
+              </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-40 mt-2">
+              <DropdownMenuItem asChild>
+                <Link to="/auth" className="flex items-center gap-2 w-full">
+                  <LogInIcon size={16} /> Login
+                </Link>
+              </DropdownMenuItem>
 
-            <DropdownMenuItem asChild>
-              <Link to="/auth" className="flex items-center gap-2 w-full">
-                Sign Up
-              </Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuItem asChild>
+                <Link to="/auth" className="flex items-center gap-2 w-full">
+                  <UserPlus2 size={16} /> Sign Up
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </Container>
       </nav>
 
       {/* Mobile Navbar */}
-      <nav className="flex md:hidden items-center justify-between px-6 py-4 shadow">
-        <div className="font-bold text-xl flex gap-2 items-center">
-          <img
-            src="/assets/icons/link.svg"
-            alt="Logo Icon"
-            className="w-6 h-6"
-          />
-          Shortener
-        </div>
+      <nav
+        className={`flex md:hidden sticky top-0 z-50 transition-colors duration-300 items-center justify-between px-6 py-4 shadow ${
+          scrolled ? "bg-white" : "bg-blue-100"
+        } `}
+      >
+        <Link to="/">
+          <div className="font-bold text-xl flex gap-2 items-center">
+            <img
+              src="/assets/icons/link.svg"
+              alt="Logo Icon"
+              className="w-6 h-6"
+            />
+            Shortener
+          </div>
+        </Link>
         <button onClick={() => setSidebarOpen(true)}>
           <Menu size={24} />
         </button>
@@ -115,7 +139,18 @@ export default function Navbar() {
               className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition"
               onClick={() => setSidebarOpen(false)}
             >
-              <LogIn size={18} /> Login
+              <LogInIcon size={16} />
+              Login
+            </a>
+          </li>
+          <li>
+            <a
+              href="/auth"
+              className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <UserPlus2 size={16} />
+              Sign Up
             </a>
           </li>
         </ul>
