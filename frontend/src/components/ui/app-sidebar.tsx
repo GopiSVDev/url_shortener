@@ -4,10 +4,11 @@ import {
   LayoutDashboardIcon,
   HomeIcon,
   LogOut,
+  ListChecks,
 } from "lucide-react";
 
-import { NavMain } from "@/components/Dashboard/nav-main";
-import { NavSecondary } from "@/components/Dashboard/nav-secondary";
+import { NavMain } from "@/components/ui/nav-main";
+import { NavSecondary } from "@/components/ui/nav-secondary";
 import {
   Sidebar,
   SidebarContent,
@@ -17,26 +18,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const data = {
-  navMain: [
-    {
-      title: "Home",
-      url: "/",
-      icon: HomeIcon,
-    },
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutDashboardIcon,
-    },
-    {
-      title: "Analytics",
-      url: "#",
-      icon: BarChartIcon,
-    },
-  ],
   navSecondary: [
     {
       title: "Sign Out",
@@ -47,6 +31,50 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const location = useLocation();
+  const path = location.pathname;
+
+  const navMain = path.startsWith("/dashboard")
+    ? [
+        {
+          title: "Home",
+          url: "/",
+          icon: HomeIcon,
+        },
+        {
+          title: "Dashboard",
+          url: "/dashboard",
+          icon: LayoutDashboardIcon,
+        },
+        {
+          title: "Analytics",
+          url: "#",
+          icon: BarChartIcon,
+        },
+      ]
+    : [
+        {
+          title: "Home",
+          url: "/",
+          icon: HomeIcon,
+        },
+        {
+          title: "Features",
+          url: "/features",
+          icon: ListChecks,
+        },
+        {
+          title: "Dashboard",
+          url: "/dashboard",
+          icon: LayoutDashboardIcon,
+        },
+        {
+          title: "Analytics",
+          url: "#",
+          icon: BarChartIcon,
+        },
+      ];
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -71,7 +99,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter></SidebarFooter>

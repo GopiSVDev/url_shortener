@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
-import Container from "@/components/ui/Container";
 import { Input } from "@/components/ui/input";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 const HeroSection = () => {
   return (
-    <div className="w-full bg-blue-100 px-6 py-10 flex items-center mt-10">
-      <Container className="flex items-center flex-col gap-10">
+    <div className="w-full px-6 py-10 flex justify-center items-center">
+      <div className="flex items-center flex-col gap-10">
         <h1 className="font-bold text-5xl text-center">
           Build stronger digital connections
         </h1>
@@ -52,7 +51,7 @@ const HeroSection = () => {
             </div>
           </div>
         </div>
-      </Container>
+      </div>
     </div>
   );
 };
