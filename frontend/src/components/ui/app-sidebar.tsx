@@ -5,6 +5,8 @@ import {
   HomeIcon,
   LogOut,
   ListChecks,
+  LogIn,
+  Link as Link2,
 } from "lucide-react";
 
 import { NavMain } from "@/components/ui/nav-main";
@@ -19,16 +21,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Link, useLocation } from "react-router-dom";
-
-const data = {
-  navSecondary: [
-    {
-      title: "Sign Out",
-      url: "#",
-      icon: LogOut,
-    },
-  ],
-};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation();
@@ -47,8 +39,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           icon: LayoutDashboardIcon,
         },
         {
+          title: "My Urls",
+          url: "/dashboard/urls",
+          icon: Link2,
+        },
+        {
           title: "Analytics",
-          url: "#",
+          url: "/dashboard/analytics",
           icon: BarChartIcon,
         },
       ]
@@ -68,10 +65,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           url: "/dashboard",
           icon: LayoutDashboardIcon,
         },
+      ];
+
+  const navSecondary = path.startsWith("/dashboard")
+    ? [
         {
-          title: "Analytics",
+          title: "Log Out",
           url: "#",
-          icon: BarChartIcon,
+          icon: LogOut,
+        },
+      ]
+    : [
+        {
+          title: "Login / Sign Up",
+          url: "/auth",
+          icon: LogIn,
         },
       ];
 
@@ -100,7 +108,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter></SidebarFooter>
     </Sidebar>

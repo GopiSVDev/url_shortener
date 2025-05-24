@@ -1,8 +1,13 @@
 import type { JSX } from "react";
 import { Navigate } from "react-router-dom";
 
-const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const isAuthenticated = true;
+const ProtectedRoute = ({
+  isAuthenticated,
+  children,
+}: {
+  isAuthenticated: boolean;
+  children: JSX.Element;
+}) => {
   return isAuthenticated ? children : <Navigate to="/auth" />;
 };
 

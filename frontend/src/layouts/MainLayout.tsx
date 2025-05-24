@@ -10,7 +10,7 @@ const MainLayout = () => {
   const routeLabels: Record<string, string> = {
     "/": "Home",
     "/dashboard": "Dashboard",
-    "/auth": "Login or Sign Up",
+    "/auth": "Login or Register",
     "/features": "Features",
   };
 
