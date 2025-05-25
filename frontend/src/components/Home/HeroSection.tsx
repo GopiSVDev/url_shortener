@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { QrCode } from "lucide-react";
 
 const HeroSection = () => {
   return (
@@ -40,13 +41,9 @@ const HeroSection = () => {
             className="flex justify-center items-center 
           min-w-[200px] md:w-[250px]"
           >
-            <div className="max-w-[250px] w-full bg-red-200 rounded-2xl">
+            <div className="max-w-[250px] w-full border border-gray-200 rounded-3xl overflow-hidden">
               <AspectRatio ratio={1 / 1} className="w-full">
-                <img
-                  src="../../public/assets/images/qr.png"
-                  alt="QR Placeholder"
-                  className="h-full w-full object-cover"
-                />
+                <QrCode className="h-full w-full" />
               </AspectRatio>
             </div>
           </div>
