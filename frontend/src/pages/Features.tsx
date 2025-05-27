@@ -32,7 +32,7 @@ const Features = () => {
         <h3 className="max-w-[900px] text-center md:text-2xl">
           A short link is a powerful marketing tool when you use it carefully.
           it is not just a link but a medium between you and your customer and
-          their destination
+          their destination.
         </h3>
         <div className="flex justify-center gap-5 flex-wrap">
           {features.map(({ title, details, icon }) => (
