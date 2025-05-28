@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/ui/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 import { Outlet, useLocation } from "react-router-dom";
+import { ModeToggle } from "@/components/ui/ThemeToggle";
 
 const MainLayout = () => {
   const location = useLocation();
@@ -20,7 +21,10 @@ const MainLayout = () => {
     <SidebarProvider>
       <AppSidebar variant="inset" />
       <SidebarInset>
-        <SiteHeader title={title} />
+        <div className="flex justify-between items-center">
+          <SiteHeader title={title} />
+          <ModeToggle />
+        </div>
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">

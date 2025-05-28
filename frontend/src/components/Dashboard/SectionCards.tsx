@@ -22,7 +22,7 @@ export function SectionCards() {
             type="url"
             placeholder="Enter your loooooong link"
           />
-          <Button className="cursor-pointer w-full bg-blue-500 hover:bg-blue-600">
+          <Button className="cursor-pointer w-full text-white bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
             Shorten URL
           </Button>
         </CardContent>
