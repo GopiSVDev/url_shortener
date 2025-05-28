@@ -5,7 +5,7 @@ import { QrCode } from "lucide-react";
 
 const Home = () => {
   return (
-    <div className="w-full px-6 py-10 flex justify-center items-center bg-white dark:bg-black">
+    <div className="w-full px-6 py-10 flex justify-center items-center bg-white dark:bg-background">
       <div className="flex items-center flex-col gap-10">
         <h1 className="font-bold text-5xl text-center text-gray-900 dark:text-white">
           Build stronger digital connections
