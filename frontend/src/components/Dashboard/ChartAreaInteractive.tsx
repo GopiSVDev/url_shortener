@@ -119,21 +119,17 @@ const chartData = [
   { date: "2024-06-30", desktop: 446, mobile: 400 },
 ];
 
-const root = window.getComputedStyle(document.documentElement);
-const chart1Color = root.getPropertyValue("--chart-1").trim();
-const chart2Color = root.getPropertyValue("--chart-2").trim();
-
 const chartConfig = {
   visitors: {
     label: "Visitors",
   },
   desktop: {
     label: "Desktop",
-    color: chart1Color,
+    color: `var(--chart-1)`,
   },
   mobile: {
     label: "Mobile",
-    color: chart2Color,
+    color: "var(--chart-2)",
   },
 } satisfies ChartConfig;
 
