@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { CopyIcon, PencilIcon, TrashIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,8 +18,10 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import SingleUrlCard from "./SingleUrlCard";
+import CardSkeleton from "./CardSkeleton";
 
-interface ShortUrl {
+export interface ShortUrl {
   id: string;
   originalUrl: string;
   shortUrl: string;
@@ -80,62 +79,22 @@ export default function AllUrlsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-4 w-full">
-        {[1, 2, 3].map((_, i) => (
-          <Card key={i} className="w-full h-[180px] max-w-[350px]">
-            <CardContent className="p-4 space-y-2">
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-4 w-1/3" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
+    return <CardSkeleton />;
   }
 
   return (
-    <>
-      <div className="space-y-4">
+    <div className="w-full flex justify-center">
+      <div className="space-y-4 w-full max-w-[900px]">
         {urls.map((url) => (
-          <Card key={url.id}>
-            <CardContent className="p-4 space-y-2">
-              <div className="text-sm text-muted-foreground">Original URL:</div>
-              <div className="text-sm break-all">{url.originalUrl}</div>
-
-              <div className="flex items-center gap-2 mt-2">
-                <Input readOnly value={url.shortUrl} className="flex-1" />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => navigator.clipboard.writeText(url.shortUrl)}
-                >
-                  <CopyIcon size={16} />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    setEditing(url);
-                    setEditInput(url.originalUrl);
-                  }}
-                >
-                  <PencilIcon size={16} />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setDeleting(url)}
-                >
-                  <TrashIcon size={16} />
-                </Button>
-              </div>
-
-              <div className="text-xs text-muted-foreground mt-1">
-                Created at: {url.createdAt}
-              </div>
-            </CardContent>
-          </Card>
+          <SingleUrlCard
+            key={url.id}
+            url={url}
+            onEdit={() => {
+              setEditing(url);
+              setEditInput(url.originalUrl);
+            }}
+            onDelete={() => setDeleting(url)}
+          />
         ))}
       </div>
 
@@ -167,6 +126,6 @@ export default function AllUrlsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }

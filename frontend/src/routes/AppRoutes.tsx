@@ -7,6 +7,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import DashboardHome from "@/pages/DashboardHome";
 import UrlsPage from "@/pages/UrlsPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
+import UrlStatsPage from "@/components/UrlsPage/UrlStatsPage";
 
 const AppRoutes = () => {
   const isAuthenticated = true;
@@ -23,6 +24,7 @@ const AppRoutes = () => {
               <Routes>
                 <Route index element={<DashboardHome />} />
                 <Route path="urls" element={<UrlsPage />} />
+                <Route path="urls/:id" element={<UrlStatsPage />} />
                 <Route path="analytics" element={<AnalyticsPage />} />
                 <Route
                   path="*"
