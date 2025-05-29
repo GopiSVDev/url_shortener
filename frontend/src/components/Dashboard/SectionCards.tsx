@@ -16,15 +16,27 @@ export function SectionCards() {
         <CardHeader className="relative font-semibold tabular-nums">
           <CardDescription>Quick Shorten</CardDescription>
         </CardHeader>
-        <CardContent className="@[250px]/card:text-3xl text-2xl  flex flex-col gap-4">
-          <Input
-            className="w-full text-[16px]"
-            type="url"
-            placeholder="Enter your loooooong link"
-          />
-          <Button className="cursor-pointer w-full text-white bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
-            Shorten URL
-          </Button>
+        <CardContent className="@[250px]/card:text-3xl text-2xl flex flex-col md:flex-row gap-5">
+          <div className="md:w-1/2">
+            <Input
+              className="w-full text-[16px]"
+              type="url"
+              placeholder="Enter your loooooong link"
+            />
+            <Button className="cursor-pointer w-full text-white bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
+              Shorten URL
+            </Button>
+          </div>
+          <div className="md:w-1/2">
+            <Input
+              readOnly
+              placeholder="You short link appears here"
+              className="w-full text-[16px]"
+            />
+            <Button className="cursor-pointer w-full text-white bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
+              Copy
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

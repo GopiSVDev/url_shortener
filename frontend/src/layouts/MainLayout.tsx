@@ -13,6 +13,8 @@ const MainLayout = () => {
     "/dashboard": "Dashboard",
     "/auth": "Login or Register",
     "/features": "Features",
+    "/dashboard/urls": "All Urls",
+    "/dashboard/analytics": "Analytics",
   };
 
   const title = routeLabels[location.pathname] || "Page";
