@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Copy, QrCode } from "lucide-react";
+import { CopyIcon, QrCode } from "lucide-react";
 
 const Home = () => {
   return (
@@ -36,7 +36,9 @@ const Home = () => {
                   placeholder="You short link appears here"
                   className=" h-[50px] text-[16px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
                 />
-                <Copy size={40} className="cursor-pointer" />
+                <Button variant="outline" className="h-[50px] cursor-pointer">
+                  <CopyIcon size={40} />
+                </Button>
               </div>
               <Button className="cursor-pointer w-full max-w-[350px] h-[50px] text-white bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
                 Shorten URL
