@@ -18,17 +18,21 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  LineChart,
+  Label,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
 } from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import DeviceStats from "../Analytics/DeviceStats";
+import LineChartStats from "../Analytics/LineChartStats";
 
 type UrlStats = {
   originalUrl: string;
@@ -36,9 +40,7 @@ type UrlStats = {
   createdAt: string;
   totalClicks: number;
   lastClickedAt: string | null;
-  clicksOverTime: { date: string; clicks: number }[];
   topLocations: { location: string; clicks: number }[];
-  devices: { device: string; clicks: number }[];
   clickLogs: {
     id: string;
     timestamp: string;
@@ -70,11 +72,6 @@ const dummyStats = {
     { location: "Germany", clicks: 200 },
     { location: "Brazil", clicks: 150 },
     { location: "Canada", clicks: 137 },
-  ],
-  devices: [
-    { device: "Desktop", clicks: 1000 },
-    { device: "Mobile", clicks: 500 },
-    { device: "Others", clicks: 87 },
   ],
   clickLogs: [
     {
@@ -108,7 +105,6 @@ export default function UrlStatsPage() {
   const { id } = useParams<{ id: string }>();
   const [stats, setStats] = useState<UrlStats | null>(dummyStats);
   const [loading, setLoading] = useState(false);
-  const COLORS = ["#3b82f6", "#f97316", "#10b981"];
 
   if (loading) return <Skeleton className="h-96 w-full" />;
 
@@ -146,27 +142,7 @@ export default function UrlStatsPage() {
 
       <Separator />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Clicks Over Time</CardTitle>
-          <CardDescription>Track clicks for last days</CardDescription>
-        </CardHeader>
-        <CardContent style={{ height: 300 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={stats.clicksOverTime}>
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="clicks"
-                stroke="#3b82f6"
-                strokeWidth={2}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <LineChartStats />
 
       <Separator />
 
@@ -201,45 +177,10 @@ export default function UrlStatsPage() {
 
       <Separator />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Devices</CardTitle>
-        </CardHeader>
-        <CardContent style={{ height: 300 }}>
-          {stats.devices.length === 0 ? (
-            <p className="text-muted-foreground">No device data.</p>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={stats.devices}
-                  dataKey="clicks"
-                  nameKey="device"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  fill="#8884d8"
-                  label
-                >
-                  {stats.devices.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend verticalAlign="bottom" height={36} />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+      <DeviceStats />
 
       <Separator />
 
-      {/* Recent Click Logs */}
       <Card>
         <CardHeader>
           <CardTitle>Recent Clicks</CardTitle>

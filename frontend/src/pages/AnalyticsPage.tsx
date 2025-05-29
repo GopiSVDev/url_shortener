@@ -1,3 +1,4 @@
+import DeviceStats from "@/components/Analytics/DeviceStats";
 import { ChartAreaInteractive } from "@/components/Dashboard/ChartAreaInteractive";
 import {
   Card,
@@ -16,14 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
 
 const stats = {
   originalUrl: "https://example.com/very/long/url/path",
@@ -47,40 +40,29 @@ const stats = {
     { location: "Brazil", clicks: 150 },
     { location: "Canada", clicks: 137 },
   ],
-  devices: [
-    { device: "Desktop", clicks: 1000 },
-    { device: "Mobile", clicks: 500 },
-    { device: "Others", clicks: 87 },
-  ],
   clickLogs: [
     {
       id: "log1",
       timestamp: "2025-05-28T18:45:00Z",
       location: "United States",
-      referrer: "facebook.com",
+
       device: "Desktop",
-      browser: "Chrome",
     },
     {
       id: "log2",
       timestamp: "2025-05-28T17:30:00Z",
       location: "India",
-      referrer: "twitter.com",
+
       device: "Mobile",
-      browser: "Safari",
     },
     {
       id: "log3",
       timestamp: "2025-05-28T16:00:00Z",
       location: "Germany",
-      referrer: "",
       device: "Tablet",
-      browser: "Firefox",
     },
   ],
 };
-
-const COLORS = ["#3b82f6", "#f97316", "#10b981"];
 
 const AnalyticsPage = () => {
   return (
@@ -180,45 +162,10 @@ const AnalyticsPage = () => {
 
             <Separator />
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Devices</CardTitle>
-              </CardHeader>
-              <CardContent style={{ height: 300 }}>
-                {stats.devices.length === 0 ? (
-                  <p className="text-muted-foreground">No device data.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={stats.devices}
-                        dataKey="clicks"
-                        nameKey="device"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        fill="#8884d8"
-                        label
-                      >
-                        {stats.devices.map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend verticalAlign="bottom" height={36} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
+            <DeviceStats />
 
             <Separator />
 
-            {/* Recent Click Logs */}
             <Card>
               <CardHeader>
                 <CardTitle>Recent Clicks</CardTitle>
