@@ -119,22 +119,19 @@ export default function UrlStatsPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 p-4">
-      {/* Summary */}
       <Card>
         <CardHeader>
-          <CardTitle>URL Summary</CardTitle>
-          <CardDescription>Basic info and total clicks</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div>
-            <h3 className="font-semibold">Original URL</h3>
-            <p className="truncate">{stats.originalUrl}</p>
-          </div>
           <div>
             <h3 className="font-semibold">Short URL</h3>
             <p className="text-blue-600 hover:underline cursor-pointer truncate">
               {stats.shortUrl}
             </p>
+          </div>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="col-span-2">
+            <h3 className="font-semibold">Original URL</h3>
+            <p className="truncate">{stats.originalUrl}</p>
           </div>
           <div>
             <h3 className="font-semibold">Created At</h3>
@@ -149,7 +146,6 @@ export default function UrlStatsPage() {
 
       <Separator />
 
-      {/* Clicks Over Time */}
       <Card>
         <CardHeader>
           <CardTitle>Clicks Over Time</CardTitle>
@@ -174,7 +170,6 @@ export default function UrlStatsPage() {
 
       <Separator />
 
-      {/* Locations */}
       <Card>
         <CardHeader>
           <CardTitle>Top Locations</CardTitle>
