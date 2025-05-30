@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+// import { useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   Card,
@@ -16,21 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Label,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+// import { Skeleton } from "@/components/ui/skeleton";
 import DeviceStats from "../Analytics/DeviceStats";
 import LineChartStats from "../Analytics/LineChartStats";
 
@@ -45,27 +31,16 @@ type UrlStats = {
     id: string;
     timestamp: string;
     location: string;
-    referrer: string;
     device: string;
-    browser: string;
   }[];
 };
 
-const dummyStats = {
+const stats: UrlStats = {
   originalUrl: "https://example.com/very/long/url/path",
   shortUrl: "https://sho.rt/abc123",
   createdAt: "2025-05-29T12:00:00Z",
   totalClicks: 1587,
   lastClickedAt: "2025-05-28T18:45:00Z",
-  clicksOverTime: [
-    { date: "2025-05-22", clicks: 45 },
-    { date: "2025-05-23", clicks: 78 },
-    { date: "2025-05-24", clicks: 120 },
-    { date: "2025-05-25", clicks: 300 },
-    { date: "2025-05-26", clicks: 400 },
-    { date: "2025-05-27", clicks: 350 },
-    { date: "2025-05-28", clicks: 294 },
-  ],
   topLocations: [
     { location: "United States", clicks: 700 },
     { location: "India", clicks: 400 },
@@ -78,35 +53,29 @@ const dummyStats = {
       id: "log1",
       timestamp: "2025-05-28T18:45:00Z",
       location: "United States",
-      referrer: "facebook.com",
       device: "Desktop",
-      browser: "Chrome",
     },
     {
       id: "log2",
       timestamp: "2025-05-28T17:30:00Z",
       location: "India",
-      referrer: "twitter.com",
       device: "Mobile",
-      browser: "Safari",
     },
     {
       id: "log3",
       timestamp: "2025-05-28T16:00:00Z",
       location: "Germany",
-      referrer: "",
       device: "Tablet",
-      browser: "Firefox",
     },
   ],
 };
 
 export default function UrlStatsPage() {
   const { id } = useParams<{ id: string }>();
-  const [stats, setStats] = useState<UrlStats | null>(dummyStats);
-  const [loading, setLoading] = useState(false);
+  //   const [stats, setStats] = useState<UrlStats | null>(dummyStats);
+  //   const [loading, setLoading] = useState(false);
 
-  if (loading) return <Skeleton className="h-96 w-full" />;
+  //   if (loading) return <Skeleton className="h-96 w-full" />;
 
   if (!stats)
     return (
@@ -118,7 +87,7 @@ export default function UrlStatsPage() {
       <Card>
         <CardHeader>
           <div>
-            <h3 className="font-semibold">Short URL</h3>
+            <h3 className="font-semibold">Short URL {id}</h3>
             <p className="text-blue-600 hover:underline cursor-pointer truncate">
               {stats.shortUrl}
             </p>
