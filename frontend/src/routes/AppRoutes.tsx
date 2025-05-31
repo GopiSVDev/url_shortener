@@ -3,14 +3,13 @@ import AuthPage from "@/pages/AuthPage";
 import Home from "@/pages/Home";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Features from "@/pages/Features";
-import ProtectedRoute from "./ProtectedRoute";
+
 import DashboardHome from "@/pages/DashboardHome";
 import UrlsPage from "@/pages/UrlsPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
 import UrlStatsPage from "@/components/UrlsPage/UrlStatsPage";
 
 const AppRoutes = () => {
-  const isAuthenticated = true;
   return (
     <Routes>
       <Route path="/" element={<MainLayout />}>
@@ -20,7 +19,7 @@ const AppRoutes = () => {
         <Route
           path="dashboard/*"
           element={
-            <ProtectedRoute isAuthenticated={isAuthenticated}>
+            <>
               <Routes>
                 <Route index element={<DashboardHome />} />
                 <Route path="urls" element={<UrlsPage />} />
@@ -31,7 +30,7 @@ const AppRoutes = () => {
                   element={<Navigate to="/dashboard" replace />}
                 />
               </Routes>
-            </ProtectedRoute>
+            </>
           }
         />
       </Route>

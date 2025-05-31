@@ -10,7 +10,7 @@ const Home = () => {
   const [longUrl, setLongUrl] = useState("");
   const [shortUrl, setShortUrl] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [qrUrl, setQrUrl] = useState<string>("");
 
   const isValidUrl = (url: string) => {
     try {
@@ -25,22 +25,25 @@ const Home = () => {
     e.preventDefault();
 
     if (!longUrl.trim()) {
-      setError("Please enter a valid URL.");
+      toast("Please enter a valid URL.");
       return;
     }
 
     if (!isValidUrl(longUrl.trim())) {
-      setError("Please enter a valid URL (e.g., https://example.com).");
+      toast("Please enter a valid URL (e.g., https://example.com).");
       return;
     }
 
     setLoading(true);
     try {
       const result = await shortenUrl(longUrl);
+      await new Promise((resolve) => setTimeout(resolve, 300));
       setShortUrl(result.shortUrl);
+      const url = "http://localhost:8080/qr/" + shortUrl;
+      setQrUrl(url);
     } catch (error) {
       console.log("Error shortening URL", error);
-      setError("Failed to shorten URL. Please try again.");
+      toast("Failed to shorten URL. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -88,14 +91,7 @@ const Home = () => {
                 placeholder="Enter your loooooong link"
                 value={longUrl}
                 onChange={(e) => setLongUrl(e.target.value)}
-                aria-invalid={!!error}
               />
-
-              {error && (
-                <p className="text-red-600 dark:text-red-400 text-sm max-w-[350px]">
-                  {error}
-                </p>
-              )}
 
               <div className="w-full max-w-[400px] flex justify-around items-center gap-3">
                 <Input
@@ -131,7 +127,15 @@ const Home = () => {
           <div className="flex justify-center items-center min-w-[200px] md:w-[250px]">
             <div className="max-w-[250px] w-full border border-gray-200 dark:border-gray-700 rounded-3xl overflow-hidden">
               <AspectRatio ratio={1 / 1} className="w-full">
-                <QrCode className="h-full w-full text-gray-900 dark:text-white" />
+                {shortUrl ? (
+                  <img
+                    src={qrUrl || ""}
+                    alt="QR Code"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <QrCode className="h-full w-full text-gray-900 dark:text-white" />
+                )}
               </AspectRatio>
             </div>
           </div>
