@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { login } from "@/api/authApi";
 import { useState } from "react";
 import axios from "axios";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   username: z.string().min(1, { message: "Username is required" }),
@@ -43,8 +44,8 @@ const LoginForm = () => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const result = await login(data);
-      console.log("Login success", result);
+      await login(data);
+      toast.success("Login Sucess");
     } catch (error) {
       if (axios.isAxiosError(error)) {
         setErrorMsg(error.response?.data?.message || error.message);

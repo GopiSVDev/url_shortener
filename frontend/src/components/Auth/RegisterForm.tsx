@@ -18,14 +18,21 @@ import {
 } from "../ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { register } from "@/api/authApi";
 
-const formSchema = z.object({
-  username: z.string().min(1, { message: "Username is required" }),
-  password: z.string().min(1, { message: "Password is required" }),
-  confirmPassword: z
-    .string()
-    .min(1, { message: "Confirm Password is required" }),
-});
+const formSchema = z
+  .object({
+    username: z.string().min(1, { message: "Username is required" }),
+    password: z.string().min(1, { message: "Password is required" }),
+    confirmPassword: z
+      .string()
+      .min(1, { message: "Confirm Password is required" }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 const RegisterForm = () => {
   const form = useForm<z.infer<typeof formSchema>>({
@@ -37,6 +44,20 @@ const RegisterForm = () => {
     },
   });
 
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      await register({
+        username: values.username,
+        password: values.password,
+      });
+      toast.success("Registration successful! Please Login");
+      form.reset();
+    } catch (error) {
+      console.error(error);
+      toast.error("Registration failed. Try Again");
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -45,7 +66,7 @@ const RegisterForm = () => {
       </CardHeader>
       <CardContent className="space-y-2">
         <Form {...form}>
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
             <FormField
               control={form.control}
               name="username"
@@ -97,7 +118,7 @@ const RegisterForm = () => {
                   </FormLabel>
                   <FormControl>
                     <Input
-                      type="confirmPassword"
+                      type="password"
                       className="bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0 dark:text-white"
                       placeholder="Enter Confirm Password"
                       {...field}

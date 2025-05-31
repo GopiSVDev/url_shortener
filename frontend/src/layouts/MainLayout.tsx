@@ -4,8 +4,21 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 import { Outlet, useLocation } from "react-router-dom";
 import { ModeToggle } from "@/components/ui/ThemeToggle";
+import { useEffect, useState } from "react";
 
 const MainLayout = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      setIsAuthenticated(true);
+    } else {
+      setIsAuthenticated(false);
+    }
+  }, []);
+
   const location = useLocation();
 
   const routeLabels: Record<string, string> = {
