@@ -7,12 +7,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-
-const chartData = [
-  { device: "Mobile", clicks: 275, fill: "var(--color-chrome)" },
-  { device: "Desktop", clicks: 200, fill: "var(--color-safari)" },
-  { device: "Others", clicks: 190, fill: "var(--color-other)" },
-];
+import { pieChart as chartData } from "@/data/dummyAnalytics";
 
 const chartConfig = {
   visitors: {

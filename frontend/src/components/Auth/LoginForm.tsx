@@ -18,6 +18,9 @@ import {
 } from "../ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { login } from "@/api/authApi";
+import { useState } from "react";
+import axios from "axios";
 
 const formSchema = z.object({
   username: z.string().min(1, { message: "Username is required" }),
@@ -25,6 +28,9 @@ const formSchema = z.object({
 });
 
 const LoginForm = () => {
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -32,6 +38,25 @@ const LoginForm = () => {
       password: "",
     },
   });
+
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const result = await login(data);
+      console.log("Login success", result);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        setErrorMsg(error.response?.data?.message || error.message);
+      } else if (error instanceof Error) {
+        setErrorMsg(error.message);
+      } else {
+        setErrorMsg("An unexpected error occurred");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Card>
@@ -41,7 +66,7 @@ const LoginForm = () => {
       </CardHeader>
       <CardContent className="space-y-2">
         <Form {...form}>
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
             <FormField
               control={form.control}
               name="username"
@@ -83,9 +108,16 @@ const LoginForm = () => {
               )}
             />
 
-            <Button className="w-full">Demo Login</Button>
+            <Button type="button" className="w-full">
+              Demo Login
+            </Button>
+
+            {errorMsg && (
+              <p className="text-red-600 text-sm text-center">{errorMsg}</p>
+            )}
+
             <Button type="submit" className="w-full">
-              Login
+              {loading ? "Logging in..." : "Login"}
             </Button>
           </form>
         </Form>
