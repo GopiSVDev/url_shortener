@@ -49,20 +49,16 @@ public class UrlService {
     );
 
     public ShortUrl createShortUrl(String originalUrl, String customCode, LocalDateTime expirationDate) {
+        if (!isValidUrl(originalUrl)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid URL format");
+        }
+
         String code;
         if (customCode != null && !customCode.isEmpty()) {
             validateCustomCode(customCode);
             code = customCode;
         } else {
             code = generateCode();
-        }
-
-        if (!originalUrl.startsWith("http://") && !originalUrl.startsWith("https://")) {
-            originalUrl = "https://" + originalUrl;
-        }
-
-        if (!isValidUrl(originalUrl)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid URL format");
         }
 
         if (repository.existsByShortCode(code)) {
@@ -86,9 +82,13 @@ public class UrlService {
     private boolean isValidUrl(String url) {
         try {
             URI uri = new URI(url);
-            return uri.getScheme() != null &&
-                    (uri.getScheme().equals("http") || uri.getScheme().equals("https")) &&
-                    uri.getHost() != null;
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+
+            return scheme != null &&
+                    (scheme.equals("http") || scheme.equals("https"))
+                    && host != null
+                    && host.matches("^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
         } catch (URISyntaxException e) {
             return false;
         }

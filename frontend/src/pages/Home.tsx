@@ -12,11 +12,25 @@ const Home = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleShorten = async (e) => {
+  const isValidUrl = (url: string) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+
+  const handleShorten = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!longUrl.trim()) {
       setError("Please enter a valid URL.");
+      return;
+    }
+
+    if (!isValidUrl(longUrl.trim())) {
+      setError("Please enter a valid URL (e.g., https://example.com).");
       return;
     }
 
@@ -62,39 +76,6 @@ const Home = () => {
             <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
               SHORTEN A LONG URL!!
             </h2>
-            {/* <div className="flex flex-col gap-3 items-center text-gray-700 dark:text-gray-300">
-              <h3 className="text-center">Paste your long link here</h3>
-              <Input
-                className="w-full max-w-[350px] h-[50px] text-[16px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
-                type="url"
-                placeholder="Enter your loooooong link"
-                value={longUrl}
-                onChange={(e) => setLongUrl(e.target.value)}
-                
-              />
-              <div className="w-full max-w-[350px] flex justify-around items-center gap-3">
-                <Input
-                  value={shortUrl || ""}
-                  readOnly
-                  placeholder="You short link appears here"
-                  className=" h-[50px] text-[16px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
-                />
-                <Button
-                  variant="outline"
-                  className="h-[50px] cursor-pointer"
-                  onClick={handleCopy}
-                >
-                  <CopyIcon size={40} />
-                </Button>
-              </div>
-              <Button
-                className="cursor-pointer w-full max-w-[350px] h-[50px] text-white bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-                onClick={handleShorten}
-              >
-                {loading && <Loader2 className="animate-spin h-5 w-5" />}
-                {loading ? "Shortening..." : "Shorten URL"}
-              </Button>
-            </div> */}
             <form
               onSubmit={handleShorten}
               className="flex flex-col gap-3 items-center text-gray-700 dark:text-gray-300 lg:w-[400px]"
