@@ -1,14 +1,4 @@
-import * as z from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import React, { useState } from "react";
 import {
   Card,
   CardContent,
@@ -20,41 +10,81 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { register } from "@/api/authApi";
-
-const formSchema = z
-  .object({
-    username: z.string().min(1, { message: "Username is required" }),
-    password: z.string().min(1, { message: "Password is required" }),
-    confirmPassword: z
-      .string()
-      .min(1, { message: "Confirm Password is required" }),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+import axios from "axios";
 
 const RegisterForm = () => {
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-      confirmPassword: "",
-    },
+  const [formValues, setFormValues] = useState({
+    username: "",
+    password: "",
+    confirmPassword: "",
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const [errors, setErrors] = useState<{
+    username?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormValues({
+      ...formValues,
+      [e.target.name]: e.target.value,
+    });
+    setErrors((prev) => ({ ...prev, [e.target.name]: undefined }));
+  };
+
+  const validate = () => {
+    const newErrors: typeof errors = {};
+
+    if (!formValues.username.trim()) {
+      newErrors.username = "Username is required";
+    }
+
+    if (!formValues.password) {
+      newErrors.password = "Password is required";
+    }
+
+    if (!formValues.confirmPassword) {
+      newErrors.confirmPassword = "Confirm Password is required";
+    }
+
+    if (
+      formValues.password &&
+      formValues.confirmPassword &&
+      formValues.password !== formValues.confirmPassword
+    ) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validate()) return;
+
     try {
       await register({
-        username: values.username,
-        password: values.password,
+        username: formValues.username,
+        password: formValues.password,
       });
       toast.success("Registration successful! Please Login");
-      form.reset();
+      setFormValues({
+        username: "",
+        password: "",
+        confirmPassword: "",
+      });
+      setErrors({});
     } catch (error) {
-      console.error(error);
-      toast.error("Registration failed. Try Again");
+      if (axios.isAxiosError(error)) {
+        const backendMessage = error.response?.data?.message;
+        toast.error(backendMessage || "Registration failed. Try again.");
+      } else {
+        toast.error("Registration failed. Try again.");
+      }
     }
   };
 
@@ -65,75 +95,81 @@ const RegisterForm = () => {
         <CardDescription>Create a new account</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
-        <Form {...form}>
-          <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
-            <FormField
-              control={form.control}
+        <form className="space-y-6" onSubmit={onSubmit} noValidate>
+          <div>
+            <label
+              htmlFor="username"
+              className="uppercase text-xs font-bold text-zinc-500 dark:text-white"
+            >
+              Username
+            </label>
+            <Input
+              id="username"
               name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="uppercase text-xs font-bold text-zinc-500 dark:text-white">
-                    Username
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      className="bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0 dark:text-white"
-                      placeholder="Enter New Username"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              placeholder="Enter New Username"
+              className={`bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0 dark:text-white ${
+                errors.username ? "border border-red-500" : ""
+              }`}
+              value={formValues.username}
+              onChange={handleChange}
             />
+            {errors.username && (
+              <p className="text-red-500 text-xs mt-1">{errors.username}</p>
+            )}
+          </div>
 
-            <FormField
-              control={form.control}
+          <div>
+            <label
+              htmlFor="password"
+              className="uppercase text-xs font-bold text-zinc-500 dark:text-white"
+            >
+              Password
+            </label>
+            <Input
+              id="password"
+              type="password"
               name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="uppercase text-xs font-bold text-zinc-500 dark:text-white">
-                    Password
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      className="bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0 dark:text-white"
-                      placeholder="Enter Password"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              placeholder="Enter Password"
+              className={`bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0 dark:text-white ${
+                errors.password ? "border border-red-500" : ""
+              }`}
+              value={formValues.password}
+              onChange={handleChange}
             />
+            {errors.password && (
+              <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+            )}
+          </div>
 
-            <FormField
-              control={form.control}
+          <div>
+            <label
+              htmlFor="confirmPassword"
+              className="uppercase text-xs font-bold text-zinc-500 dark:text-white"
+            >
+              Confirm Password
+            </label>
+            <Input
+              id="confirmPassword"
+              type="password"
               name="confirmPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="uppercase text-xs font-bold text-zinc-500 dark:text-white">
-                    Confirm Password
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      className="bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0 dark:text-white"
-                      placeholder="Enter Confirm Password"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              placeholder="Enter Confirm Password"
+              className={`bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0 dark:text-white ${
+                errors.confirmPassword ? "border border-red-500" : ""
+              }`}
+              value={formValues.confirmPassword}
+              onChange={handleChange}
             />
+            {errors.confirmPassword && (
+              <p className="text-red-500 text-xs mt-1">
+                {errors.confirmPassword}
+              </p>
+            )}
+          </div>
 
-            <Button type="submit" className="w-full">
-              Register
-            </Button>
-          </form>
-        </Form>
+          <Button type="submit" className="w-full">
+            Register
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );

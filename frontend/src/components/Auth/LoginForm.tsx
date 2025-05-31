@@ -1,14 +1,4 @@
-import * as z from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import React, { useState } from "react";
 import {
   Card,
   CardContent,
@@ -19,41 +9,59 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { login } from "@/api/authApi";
-import { useState } from "react";
-import axios from "axios";
 import { toast } from "sonner";
 
-const formSchema = z.object({
-  username: z.string().min(1, { message: "Username is required" }),
-  password: z.string().min(1, { message: "Password is required" }),
-});
-
 const LoginForm = () => {
+  const [formValues, setFormValues] = useState({
+    username: "",
+    password: "",
+  });
+
+  const [errors, setErrors] = useState<{
+    username?: string;
+    password?: string;
+  }>({});
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-    },
-  });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormValues({
+      ...formValues,
+      [e.target.name]: e.target.value,
+    });
+    setErrors((prev) => ({ ...prev, [e.target.name]: undefined }));
+    setErrorMsg(null);
+  };
 
-  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+  const validate = () => {
+    const newErrors: typeof errors = {};
+    if (!formValues.username.trim()) {
+      newErrors.username = "Username is required";
+    }
+    if (!formValues.password) {
+      newErrors.password = "Password is required";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+
     setLoading(true);
     setErrorMsg(null);
+
     try {
-      await login(data);
-      toast.success("Login Sucess");
+      await login({
+        username: formValues.username,
+        password: formValues.password,
+      });
+      toast.success("Login Successful");
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        setErrorMsg(error.response?.data?.message || error.message);
-      } else if (error instanceof Error) {
-        setErrorMsg(error.message);
-      } else {
-        setErrorMsg("An unexpected error occurred");
-      }
+      if (error instanceof Error)
+        toast.error("Username or password is incorrect");
     } finally {
       setLoading(false);
     }
@@ -66,62 +74,60 @@ const LoginForm = () => {
         <CardDescription>Login into your account</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
-        <Form {...form}>
-          <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
-            <FormField
-              control={form.control}
+        <form className="space-y-6" onSubmit={onSubmit} noValidate>
+          <div>
+            <label
+              htmlFor="username"
+              className="uppercase text-xs font-bold text-zinc-500 dark:text-white"
+            >
+              Username
+            </label>
+            <Input
+              id="username"
               name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="uppercase text-xs font-bold text-zinc-500 dark:text-white">
-                    Username
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      className="bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0 dark:text-white"
-                      placeholder="Enter Your Username"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              placeholder="Enter Your Username"
+              className={`bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0 dark:text-white ${
+                errors.username ? "border border-red-500" : ""
+              }`}
+              value={formValues.username}
+              onChange={handleChange}
             />
-
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="uppercase text-xs font-bold text-zinc-500 dark:text-white">
-                    Password
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      className="bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0 dark:text-white"
-                      placeholder="Enter Password"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <Button type="button" className="w-full">
-              Demo Login
-            </Button>
-
-            {errorMsg && (
-              <p className="text-red-600 text-sm text-center">{errorMsg}</p>
+            {errors.username && (
+              <p className="text-red-500 text-xs mt-1">{errors.username}</p>
             )}
+          </div>
 
-            <Button type="submit" className="w-full">
-              {loading ? "Logging in..." : "Login"}
-            </Button>
-          </form>
-        </Form>
+          <div>
+            <label
+              htmlFor="password"
+              className="uppercase text-xs font-bold text-zinc-500 dark:text-white"
+            >
+              Password
+            </label>
+            <Input
+              id="password"
+              type="password"
+              name="password"
+              placeholder="Enter Password"
+              className={`bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0 dark:text-white ${
+                errors.password ? "border border-red-500" : ""
+              }`}
+              value={formValues.password}
+              onChange={handleChange}
+            />
+            {errors.password && (
+              <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+            )}
+          </div>
+
+          {errorMsg && (
+            <p className="text-red-600 text-sm text-center">{errorMsg}</p>
+          )}
+
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );
