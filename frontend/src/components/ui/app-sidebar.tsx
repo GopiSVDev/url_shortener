@@ -20,59 +20,46 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const location = useLocation();
-  const path = location.pathname;
+  const { isAuthenticated, logout } = useAuth();
 
-  const navMain = path.startsWith("/dashboard")
-    ? [
-        {
-          title: "Home",
-          url: "/",
-          icon: HomeIcon,
-        },
-        {
-          title: "Dashboard",
-          url: "/dashboard",
-          icon: LayoutDashboardIcon,
-        },
-        {
-          title: "My Urls",
-          url: "/dashboard/urls",
-          icon: Link2,
-        },
-        {
-          title: "Analytics",
-          url: "/dashboard/analytics",
-          icon: BarChartIcon,
-        },
-      ]
-    : [
-        {
-          title: "Home",
-          url: "/",
-          icon: HomeIcon,
-        },
-        {
-          title: "Features",
-          url: "/features",
-          icon: ListChecks,
-        },
-        {
-          title: "Dashboard",
-          url: "/dashboard",
-          icon: LayoutDashboardIcon,
-        },
-      ];
+  const navMain = [
+    {
+      title: "Home",
+      url: "/",
+      icon: HomeIcon,
+    },
+    {
+      title: "Features",
+      url: "/features",
+      icon: ListChecks,
+    },
+    {
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: LayoutDashboardIcon,
+    },
+    {
+      title: "My Urls",
+      url: "/dashboard/urls",
+      icon: Link2,
+    },
+    {
+      title: "Analytics",
+      url: "/dashboard/analytics",
+      icon: BarChartIcon,
+    },
+  ];
 
-  const navSecondary = path.startsWith("/dashboard")
+  const navSecondary = isAuthenticated
     ? [
         {
           title: "Log Out",
-          url: "#",
           icon: LogOut,
+          onClick: () => logout(),
         },
       ]
     : [

@@ -10,8 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { login } from "@/api/authApi";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const LoginForm = () => {
+  const { setToken } = useAuth();
+  const navigate = useNavigate();
+
   const [formValues, setFormValues] = useState({
     username: "",
     password: "",
@@ -54,11 +59,19 @@ const LoginForm = () => {
     setErrorMsg(null);
 
     try {
-      await login({
+      const token = await login({
         username: formValues.username,
         password: formValues.password,
       });
+
+      localStorage.setItem("token", token);
+      setToken(token);
       toast.success("Login Successful");
+      setFormValues({
+        username: "",
+        password: "",
+      });
+      navigate("/dashboard");
     } catch (error) {
       if (error instanceof Error)
         toast.error("Username or password is incorrect");

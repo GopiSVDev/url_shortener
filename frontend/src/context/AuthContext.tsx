@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface JwtPayload {
   exp?: number;
@@ -18,6 +20,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [token, setToken] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const isTokenValid = (token: string) => {
     try {
@@ -44,6 +47,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = () => {
     localStorage.removeItem("token");
     setToken(null);
+    navigate("/auth");
+    toast.success("Logged Out Successfully");
   };
 
   const isAuthenticated = Boolean(token);

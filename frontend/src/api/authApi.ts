@@ -7,18 +7,11 @@ interface AuthPayload {
   password: string;
 }
 
-interface LoginResponse {
-  token: string;
-}
-
-export const login = async (data: AuthPayload): Promise<LoginResponse> => {
-  const response = await axios.post(`${API_BASE_URL}/auth/login`, data);
-  const token = response.data;
-  localStorage.setItem("token", token);
-  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  return response.data;
-};
-
 export const register = async (data: AuthPayload): Promise<void> => {
   await axios.post(`${API_BASE_URL}/auth/register`, data);
+};
+
+export const login = async (data: AuthPayload): Promise<string> => {
+  const response = await axios.post(`${API_BASE_URL}/auth/login`, data);
+  return response.data;
 };
