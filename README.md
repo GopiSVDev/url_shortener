@@ -52,8 +52,8 @@ long URLs, customize short codes, track link analytics, and manage their links e
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/GopiSVDev/url_shortener.git
-   cd url_shortener
+   git clone https://github.com/GopiSVDev/url_shortener_backend.git
+   cd url_shortener_backend
    ```
 
 2. **Configure the application**:
