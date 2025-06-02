@@ -21,7 +21,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 @EnableWebSecurity
-@Configuration
+@Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
     @Autowired
     private UserDetailsService userDetailsService;
