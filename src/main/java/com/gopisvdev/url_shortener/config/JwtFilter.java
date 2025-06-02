@@ -1,6 +1,7 @@
 package com.gopisvdev.url_shortener.config;
 
 import com.gopisvdev.url_shortener.service.JwtService;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,7 +32,7 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
         String path = request.getRequestURI();
-        if (path.equals("/api/users/register") || path.equals("/api/users/login")) {
+        if (path.equals("/api/users/register") || path.equals("/api/users/login") || path.equals("/shorten")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -39,23 +40,29 @@ public class JwtFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
         String token = null;
         String userName = null;
-
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-            userName = jwtService.extractUsername(token);
-        }
-
-        if (userName != null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(userName);
-
-            if (jwtService.validateToken(token)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+        try {
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
+                userName = jwtService.extractUsername(token);
             }
-        }
 
-        filterChain.doFilter(request, response);
+            if (userName != null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(userName);
+
+                if (jwtService.validateToken(token)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            }
+
+            filterChain.doFilter(request, response);
+        } catch (ExpiredJwtException e) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\": \"JWT token expired\"}");
+            return;
+        }
     }
 }
