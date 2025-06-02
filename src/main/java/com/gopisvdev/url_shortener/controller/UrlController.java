@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.file.AccessDeniedException;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -66,24 +65,7 @@ public class UrlController {
 
     @PutMapping("/user/urls/{code}")
     public ResponseEntity<?> updateUrl(@PathVariable String code, @RequestBody UrlRequest request, Authentication authentication) {
-        ShortUrl existing = service.getByCode(code);
-        if (existing == null) {
-            throw new ShortUrlNotFoundException("URL NOT FOUND");
-        }
-        String username = authentication.getName();
-        if (!existing.getCreatedBy().getUsername().equals(username)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not authorized to update this URL");
-        }
-
-        existing.setOriginalUrl(request.getOriginalUrl());
-        existing.setUpdatedAt(LocalDateTime.now());
-
-        if (request.getExpirationDate() != null) {
-            existing.setExpirationDate(request.getExpirationDate());
-        }
-
-        service.save(existing);
-        ShortUrlDto dto = new ShortUrlDto(existing);
+        ShortUrlDto dto = service.updateUrl(code, request, authentication);
         return ResponseEntity.ok(dto);
     }
 

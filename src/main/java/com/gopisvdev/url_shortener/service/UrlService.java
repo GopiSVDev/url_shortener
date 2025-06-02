@@ -2,6 +2,7 @@ package com.gopisvdev.url_shortener.service;
 
 import com.gopisvdev.url_shortener.dto.ShortUrlDto;
 import com.gopisvdev.url_shortener.dto.UrlAnalyticsDto;
+import com.gopisvdev.url_shortener.dto.UrlRequest;
 import com.gopisvdev.url_shortener.entity.ShortUrl;
 import com.gopisvdev.url_shortener.entity.User;
 import com.gopisvdev.url_shortener.exception.ShortUrlNotFoundException;
@@ -92,6 +93,35 @@ public class UrlService {
         } catch (URISyntaxException e) {
             return false;
         }
+    }
+
+    public ShortUrlDto updateUrl(String code, UrlRequest request, Authentication authentication) {
+        ShortUrl existing = getByCode(code);
+        if (existing == null) {
+            throw new ShortUrlNotFoundException("URL NOT FOUND");
+        }
+        String username = authentication.getName();
+        if (!existing.getCreatedBy().getUsername().equals(username)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not authorized to update this URL");
+        }
+
+        String customCode = request.getCustomCode();
+        if (customCode != null && !customCode.equals(existing.getShortCode())) {
+            if (repository.existsByShortCode(customCode)) {
+                throw new IllegalArgumentException("Custom code is already in use.");
+            }
+            existing.setShortCode(customCode);
+        }
+
+        existing.setOriginalUrl(request.getOriginalUrl());
+        existing.setUpdatedAt(LocalDateTime.now());
+
+        if (request.getExpirationDate() != null) {
+            existing.setExpirationDate(request.getExpirationDate());
+        }
+
+        save(existing);
+        return new ShortUrlDto(existing);
     }
 
     private void validateCustomCode(String customCode) {
