@@ -35,7 +35,7 @@ public class UrlController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         }
     }
-    
+
     @GetMapping("/user/urls")
     public ResponseEntity<List<ShortUrlDto>> getUserUrls(Authentication authentication) {
         String username = authentication.getName();
