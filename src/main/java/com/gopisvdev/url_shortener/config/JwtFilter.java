@@ -32,7 +32,7 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
         String path = request.getRequestURI();
-        if (path.equals("/api/users/register") || path.equals("/api/users/login") || path.equals("/shorten")) {
+        if (path.equals("/api/users/register") || path.equals("/api/users/login")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -62,7 +62,6 @@ public class JwtFilter extends OncePerRequestFilter {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
             response.getWriter().write("{\"error\": \"JWT token expired\"}");
-            return;
         }
     }
 }

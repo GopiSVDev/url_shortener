@@ -66,9 +66,13 @@ public class UrlService {
             throw new IllegalArgumentException("Short code already exists.");
         }
 
+        User user = null;
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = auth.getName();
-        User user = userRepository.findByUsername(username).orElse(null);
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+            String username = auth.getName();
+            user = userRepository.findByUsername(username).orElse(null);
+        }
+
 
         ShortUrl url = new ShortUrl();
         url.setShortCode(code);
