@@ -42,6 +42,14 @@ public class UrlController {
         return ResponseEntity.ok(dtoList);
     }
 
+    @GetMapping("/user/urls/stats")
+    public ResponseEntity<UrlAnalyticsDto> getCombinedStats(Authentication authentication) {
+        String username = authentication.getName();
+        UrlAnalyticsDto stats = service.getCombinedStats(username);
+
+        return ResponseEntity.ok(stats);
+    }
+
     @GetMapping("/user/urls/{code}")
     public ResponseEntity<?> getUserUrl(@PathVariable String code, Authentication authentication) {
 

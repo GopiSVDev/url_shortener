@@ -23,6 +23,7 @@ import java.net.URISyntaxException;
 import java.nio.file.AccessDeniedException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -188,6 +189,37 @@ public class UrlService {
                 .map(ShortUrlDto::fromEntity)
                 .toList();
     }
+
+    public UrlAnalyticsDto getCombinedStats(String username) {
+        User user = userRepository.findByUsername(username).orElse(null);
+
+        if (user == null) {
+            throw new UsernameNotFoundException("User not found: " + username);
+        }
+
+        List<ShortUrl> urls = repository.findAllByCreatedBy(user);
+        if (urls.isEmpty()) {
+            return new UrlAnalyticsDto();  // return empty stats
+        }
+
+        UrlAnalyticsDto dto = new UrlAnalyticsDto();
+        dto.setClicksByDate(toMapStats(clickLogRepository.countClicksOverTime(urls)));
+        dto.setClicksByDeviceType(toMapStats(clickLogRepository.countClicksByDeviceType(urls)));
+        dto.setClicksByCity(toMapStats(clickLogRepository.countClicksByCity(urls)));
+        dto.setClicksByCountry(toMapStats(clickLogRepository.countClicksByCountry(urls)));
+
+        return dto;
+    }
+
+    private Map<String, Long> toMapStats(List<Object[]> rawData) {
+        Map<String, Long> map = new HashMap<>();
+        for (Object[] row : rawData) {
+            if (row[0] == null) continue;
+            map.put(row[0].toString(), ((Number) row[1]).longValue());
+        }
+        return map;
+    }
+
 
     public UrlAnalyticsDto getStatsForUrl(String code, String username) throws AccessDeniedException {
         ShortUrl shortUrl = repository.findByShortCode(code).orElseThrow(() -> new ShortUrlNotFoundException("Url Not Found"));
