@@ -16,4 +16,6 @@ public class UrlAnalyticsDto {
     private Map<String, Long> clicksByDeviceType;
     private Map<String, Long> clicksByCity;
     private Map<String, Long> clicksByCountry;
+    private long totalLinks;
+    private long totalClicks;
 }

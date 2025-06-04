@@ -3,6 +3,7 @@ package com.gopisvdev.url_shortener.service;
 import com.gopisvdev.url_shortener.dto.ShortUrlDto;
 import com.gopisvdev.url_shortener.dto.UrlAnalyticsDto;
 import com.gopisvdev.url_shortener.dto.UrlRequest;
+import com.gopisvdev.url_shortener.entity.ClickLog;
 import com.gopisvdev.url_shortener.entity.ShortUrl;
 import com.gopisvdev.url_shortener.entity.User;
 import com.gopisvdev.url_shortener.exception.ShortUrlNotFoundException;
@@ -198,8 +199,10 @@ public class UrlService {
         }
 
         List<ShortUrl> urls = repository.findAllByCreatedBy(user);
+        List<ClickLog> logs = clickLogRepository.findByShortUrlIn(urls);
+
         if (urls.isEmpty()) {
-            return new UrlAnalyticsDto();  // return empty stats
+            return new UrlAnalyticsDto();
         }
 
         UrlAnalyticsDto dto = new UrlAnalyticsDto();
@@ -207,6 +210,9 @@ public class UrlService {
         dto.setClicksByDeviceType(toMapStats(clickLogRepository.countClicksByDeviceType(urls)));
         dto.setClicksByCity(toMapStats(clickLogRepository.countClicksByCity(urls)));
         dto.setClicksByCountry(toMapStats(clickLogRepository.countClicksByCountry(urls)));
+        dto.setTotalLinks(urls.size());
+        dto.setTotalClicks(logs.size());
+
 
         return dto;
     }
@@ -238,6 +244,8 @@ public class UrlService {
         dto.setClicksByDate(toMap(byDate));
         dto.setClicksByDeviceType(toMap(byDevice));
         dto.setClicksByCountry(toMap(byCountry));
+        dto.setTotalLinks(0);
+        dto.setTotalClicks(shortUrl.getClickCount());
 
         return dto;
     }
