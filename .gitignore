@@ -1,0 +1,77 @@
+# ==========================================
+# IDE & Editor Specific Rules
+# ==========================================
+# IntelliJ IDEA (Backend)
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+.idea_modules/
+
+# Eclipse / STS (if imported)
+.classpath
+.project
+.settings/
+.factorypath
+.apt_generated
+
+# VS Code (Frontend)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# OS junk files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+
+# ==========================================
+# Frontend (React Router 7 / Mantine / Node)
+# ==========================================
+node_modules/
+frontend/node_modules/
+dist/
+build/
+.react-router/
+.cache/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# Backend (Java 25 / Maven / Gradle)
+# ==========================================
+# Maven
+target/
+*.tag
+
+# Gradle
+.gradle/
+build/
+
+# JVM crashes and logs
+*.log
+*.hprof
+*.pid
+*.seed
+*.pid.lock
+
+# ==========================================
+# Docker & Local Persistent Data
+# ==========================================
+*.user
+postgres_data/
+.docker/
