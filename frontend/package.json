@@ -1,0 +1,42 @@
+{
+  "name": "frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "react-router build",
+    "ci": "pnpm build && pnpm test --run && pnpm typecheck",
+    "dev": "react-router dev",
+    "start": "react-router-serve ./build/server/index.js",
+    "test": "vitest",
+    "typecheck": "react-router typegen && tsc"
+  },
+  "dependencies": {
+    "@mantine/core": "^9.6.3",
+    "@mantine/hooks": "^9.6.3",
+    "@react-router/node": "8.4.0",
+    "@react-router/serve": "8.4.0",
+    "isbot": "^5.2.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router": "8.4.0"
+  },
+  "devDependencies": {
+    "@react-router/dev": "8.4.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "jsdom": "^30.1.1",
+    "postcss": "^8.5.28",
+    "postcss-preset-mantine": "^1.18.0",
+    "postcss-simple-vars": "^7.0.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vite-plugin-devtools-json": "^1.1.0",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^5.0.3"
+  }
+}
