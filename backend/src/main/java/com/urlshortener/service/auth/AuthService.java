@@ -5,12 +5,17 @@ import com.urlshortener.dto.auth.LoginRequest;
 import com.urlshortener.dto.auth.RegisterRequest;
 import com.urlshortener.entity.Role;
 import com.urlshortener.entity.User;
+import com.urlshortener.exception.UsernameAlreadyExistsException;
 import com.urlshortener.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -21,34 +26,43 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
 
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Username is already taken!");
+        String username = normalize(request.getUsername());
+
+        if (userRepository.existsByUsername(username)) {
+            throw new UsernameAlreadyExistsException();
         }
 
         User user = new User();
-        user.setUsername(request.getUsername());
+        user.setUsername(username);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(Role.USER);
 
-        userRepository.save(user);
+        try {
+            userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new UsernameAlreadyExistsException();
+        }
 
-        String accessToken = jwtService.generateAccessToken(user.getUsername());
-        String refreshToken = jwtService.generateRefreshToken(user.getUsername());
+        String accessToken = jwtService.generateAccessToken(username);
+        String refreshToken = jwtService.generateRefreshToken(username);
 
         return new AuthResponse(accessToken, refreshToken);
     }
 
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
+        Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()
-                )
-        );
+                        normalize(request.getUsername()), request.getPassword()));
 
-        String accessToken = jwtService.generateAccessToken(request.getUsername());
-        String refreshToken = jwtService.generateRefreshToken(request.getUsername());
+        String username = auth.getName();
+
+        String accessToken = jwtService.generateAccessToken(username);
+        String refreshToken = jwtService.generateRefreshToken(username);
 
         return new AuthResponse(accessToken, refreshToken);
+    }
+
+    private String normalize(String username) {
+        return username.trim().toLowerCase(Locale.ROOT);
     }
 }

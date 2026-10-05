@@ -16,66 +16,58 @@ import java.util.Map;
 
 @Service
 public class JwtService {
-    @Value("${jwt.secret}")
-    private String secretKey;
+    private static final String TYPE = "type";
+    private static final String ACCESS = "access";
+    private static final String REFRESH = "refresh";
 
-    @Value("${jwt.access-token-expiration-ms}")
-    private long accessTokenExpirationMs;
+    private final SecretKey key;
+    private final long accessTtlMs;
+    private final long refreshTtlMs;
 
-    @Value("${jwt.refresh-token-expiration-ms}")
-    private long refreshTokenExpirationMs;
-
-    private SecretKey getKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-        return Keys.hmacShaKeyFor(keyBytes);
-    }
-
-    public String extractUsername(String token) {
-        return extractAllClaims(token).getSubject();
-    }
-
-    public Date extractExpiration(String token) {
-        return extractAllClaims(token).getExpiration();
-    }
-
-    private Claims extractAllClaims(String token) {
-        return Jwts.parser()
-                .verifyWith(getKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-    }
-
-    private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+    public JwtService(@Value("${jwt.secret}") String secret,
+                      @Value("${jwt.access-token-expiration-ms}") long accessTtlMs,
+                      @Value("${jwt.refresh-token-expiration-ms}") long refreshTtlMs) {
+        this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+        this.accessTtlMs = accessTtlMs;
+        this.refreshTtlMs = refreshTtlMs;
     }
 
     public String generateAccessToken(String username) {
-        return buildToken(new HashMap<>(), username, accessTokenExpirationMs);
+        return build(username, ACCESS, accessTtlMs);
     }
 
     public String generateRefreshToken(String username) {
-        return buildToken(new HashMap<>(), username, refreshTokenExpirationMs);
+        return build(username, REFRESH, refreshTtlMs);
     }
 
-    private String buildToken(Map<String, Object> claims, String subject, long expirationTimeMs) {
-        return Jwts.builder()
-                .claims(claims)
-                .subject(subject)
-                .header().empty().add("typ", "JWT")
-                .and()
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + expirationTimeMs))
-                .signWith(getKey())
-                .compact();
+    public String extractUsername(String token) {
+        return parse(token).getSubject();
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {
         try {
-            final String username = extractUsername(token);
-            return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+            Claims claims = parse(token);
+            return ACCESS.equals(claims.get(TYPE, String.class))
+                    && userDetails.getUsername().equals(claims.getSubject());
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
+    }
+
+    private Claims parse(String token) {
+        return Jwts.parser().verifyWith(key).build()
+                .parseSignedClaims(token).getPayload();
+    }
+
+
+    private String build(String subject, String type, long ttlMs) {
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .subject(subject)
+                .claim(TYPE, type)
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + ttlMs))
+                .signWith(key)
+                .compact();
     }
 }
