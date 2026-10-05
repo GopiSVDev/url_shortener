@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { api, ApiError } from "~/lib/api.server";
+import { api, ApiError } from "~/.server/api";
 
 const tokensSchema = z.object({
   accessToken: z.string(),

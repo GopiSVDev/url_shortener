@@ -4,9 +4,9 @@ import {
   redirect,
   type MiddlewareFunction,
 } from "react-router";
-import { env } from "~/lib/env.server";
+import { env } from "~/.server/env";
 import { localizePath } from "~/lib/i18n/locales";
-import { decodeJwt, isExpired } from "~/lib/jwt.server";
+import { decodeJwt, isExpired } from "~/.server/jwt";
 import { refresh, type Tokens } from "./auth-api.server";
 
 export type User = { username: string };

@@ -41,13 +41,20 @@ function usePageTitle() {
   return handle?.title ? t(handle.title) : null;
 }
 
-export function AppLayout({ children }: { children: ReactNode }) {
+export function AppLayout({
+  children,
+  title: titleOverride,
+}: {
+  children: ReactNode;
+  /** Top-bar title when no route handle provides one, e.g. in error boundaries. */
+  title?: string;
+}) {
   const { t, localize } = useI18n();
   const { user, sidebarCollapsed } = useRootData();
   const [collapsed, setCollapsed] = useState(sidebarCollapsed);
   const [drawerOpened, drawer] = useDisclosure(false);
   const { pathname } = useLocation();
-  const title = usePageTitle();
+  const title = titleOverride ?? usePageTitle();
 
   useEffect(() => drawer.close(), [pathname]);
 

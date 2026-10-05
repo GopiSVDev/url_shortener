@@ -1,7 +1,7 @@
 import { data, redirect, type ActionFunctionArgs } from "react-router";
 import { z } from "zod";
-import { ApiError } from "~/lib/api.server";
-import { parseForm, type FormErrors } from "~/lib/form.server";
+import { ApiError } from "~/.server/api";
+import { parseForm, type FormErrors } from "~/.server/form";
 import { localizePath, type MessageKey } from "~/lib/i18n/locales";
 import { login, register } from "./auth-api.server";
 import { authContext } from "./session.server";

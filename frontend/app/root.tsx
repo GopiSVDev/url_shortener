@@ -1,4 +1,4 @@
-import React from "react";
+import type { ReactNode } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -6,19 +6,50 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useRouteLoaderData,
 } from "react-router";
-import { Box, Code, ColorSchemeScript, Container, mantineHtmlProps, Text, Title } from "@mantine/core";
+import {
+  ColorSchemeScript,
+  Container,
+  mantineHtmlProps,
+  Text,
+  Title,
+} from "@mantine/core";
 import type { Route } from "./+types/root";
 import "./app.css";
 import { AppTheme } from "~/app-theme";
+import { authContext, authMiddleware } from "~/features/auth/session.server";
+import { getSiteUrl } from "~/.server/env";
+import { I18nProvider } from "~/lib/i18n/i18n";
+import { defaultLocale, loadMessages, resolveLocale } from "~/lib/i18n/locales";
+import { isSidebarCollapsed } from "~/lib/sidebar";
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export const middleware: Route.MiddlewareFunction[] = [authMiddleware];
+
+export async function loader({ params, context, request }: Route.LoaderArgs) {
+  const locale = resolveLocale(params.lang) ?? defaultLocale;
+
+  return {
+    locale,
+    messages: await loadMessages(locale),
+    user: context.get(authContext).user,
+    siteUrl: getSiteUrl(request),
+    sidebarCollapsed: isSidebarCollapsed(request.headers.get("Cookie")),
+  };
+}
+
+export const links: Route.LinksFunction = () => [
+  { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+];
+
+export function Layout({ children }: { children: ReactNode }) {
+  const data = useRouteLoaderData<typeof loader>("root");
   return (
-    <html lang="en" {...mantineHtmlProps}>
+    <html lang={data?.locale ?? defaultLocale} dir="ltr" {...mantineHtmlProps}>
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-        <ColorSchemeScript />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <ColorSchemeScript defaultColorScheme="auto" />
         <Meta />
         <Links />
       </head>
@@ -31,34 +62,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function App() {
-  return <Outlet />;
+export default function App({ loaderData }: Route.ComponentProps) {
+  return (
+    <I18nProvider locale={loaderData.locale} messages={loaderData.messages}>
+      <Outlet />
+    </I18nProvider>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "An unexpected error occurred.";
-  let stack: string | undefined;
-
-  if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
-    details =
-      error.status === 404
-        ? "The requested page could not be found."
-        : error.statusText || details;
-  } else if (import.meta.env.DEV && error && error instanceof Error) {
-    details = error.message;
-    stack = error.stack;
-  }
+  const status = isRouteErrorResponse(error) ? error.status : 500;
+  const stack =
+    import.meta.env.DEV && error instanceof Error ? error.stack : undefined;
 
   return (
-    <Container component='main' pt='xl' p='md' mx='auto'>
-      <Title>{message}</Title>
-      <Text>{details}</Text>
-      {(stack) && (
-        <Box component='pre' w='100%' style={{ overflowX: 'auto' }} p='md'>
-          <Code>{stack}</Code>
-        </Box>
+    <Container component="main" size="sm" py={96}>
+      <Title>
+        {status === 404 ? "Page not found" : "Something went wrong"}
+      </Title>
+      <Text c="dimmed" mt="sm">
+        {status === 404
+          ? "The page you're looking for doesn't exist."
+          : "Please try again later."}
+      </Text>
+      {stack && (
+        <Text component="pre" size="xs" mt="xl" style={{ overflowX: "auto" }}>
+          {stack}
+        </Text>
       )}
     </Container>
   );
