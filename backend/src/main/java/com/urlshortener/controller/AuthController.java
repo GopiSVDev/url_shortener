@@ -2,6 +2,7 @@ package com.urlshortener.controller;
 
 import com.urlshortener.dto.auth.AuthResponse;
 import com.urlshortener.dto.auth.LoginRequest;
+import com.urlshortener.dto.auth.RefreshRequest;
 import com.urlshortener.dto.auth.RegisterRequest;
 import com.urlshortener.service.auth.AuthService;
 import jakarta.validation.Valid;
@@ -27,5 +28,10 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        return ResponseEntity.ok(authService.refresh(request));
     }
 }

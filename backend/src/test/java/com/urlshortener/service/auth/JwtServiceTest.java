@@ -1,5 +1,6 @@
 package com.urlshortener.service.auth;
 
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Encoders;
 import org.junit.jupiter.api.Test;
@@ -72,5 +73,12 @@ public class JwtServiceTest {
     void shortSecret_failsAtStartup() {
         String tooShort = Encoders.BASE64.encode("short".getBytes());
         assertThrows(Exception.class, () -> new JwtService(tooShort, 1, 1));
+    }
+
+    @Test
+    void refreshExtraction_acceptsRefreshToken_rejectsAccessToken() {
+        assertEquals("alice", jwt.extractUsernameFromRefreshToken(jwt.generateRefreshToken("alice")));
+        assertThrows(JwtException.class,
+                () -> jwt.extractUsernameFromRefreshToken(jwt.generateAccessToken("alice")));
     }
 }

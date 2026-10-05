@@ -192,4 +192,36 @@ class AuthControllerIT {
         mvc.perform(get("/api/some-protected-route").header("Authorization", "Bearer " + access))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void refresh_withRefreshToken_returnsWorkingAccessToken() throws Exception {
+        String body = register(unique(), "Str0ng!Pass");
+        String refresh = JsonPath.read(body, "$.refreshToken");
+
+        String refreshed = postJson("/api/auth/refresh", "{\"refreshToken\":\"%s\"}".formatted(refresh))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+
+        String newAccess = JsonPath.read(refreshed, "$.accessToken");
+        mvc.perform(get("/api/some-protected-route").header("Authorization", "Bearer " + newAccess))
+                .andExpect(status().isNotFound());   // 404 = security let it through
+    }
+
+    @Test
+    void refresh_withAccessTokenOrGarbage_returns401() throws Exception {
+        String body = register(unique(), "Str0ng!Pass");
+        String access = JsonPath.read(body, "$.accessToken");
+
+        postJson("/api/auth/refresh", "{\"refreshToken\":\"%s\"}".formatted(access))
+                .andExpect(status().isUnauthorized());
+        postJson("/api/auth/refresh", "{\"refreshToken\":\"abc.def.ghi\"}")
+                .andExpect(status().isUnauthorized());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "{}", "not json", "{\"refreshToken\":\"\"}", "{\"refreshToken\":null}"})
+    void refresh_badInput_returns400(String body) throws Exception {
+        postJson("/api/auth/refresh", body).andExpect(status().isBadRequest());
+    }
 }

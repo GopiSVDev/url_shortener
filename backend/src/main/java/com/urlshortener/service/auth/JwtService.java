@@ -59,6 +59,13 @@ public class JwtService {
                 .parseSignedClaims(token).getPayload();
     }
 
+    public String extractUsernameFromRefreshToken(String token) {
+        Claims claims = parse(token);
+        if (!REFRESH.equals(claims.get(TYPE, String.class))) {
+            throw new JwtException("Not a refresh token");
+        }
+        return claims.getSubject();
+    }
 
     private String build(String subject, String type, long ttlMs) {
         long now = System.currentTimeMillis();
