@@ -1,0 +1,130 @@
+{
+  "meta": {
+    "homeTitle": "Short links and QR codes",
+    "homeDescription": "Turn long URLs into short links and QR codes you can share anywhere, and see how each one performs.",
+    "featuresTitle": "Features",
+    "featuresDescription": "Short links, QR codes, click analytics, custom aliases and expiring links, all in one place.",
+    "loginTitle": "Log in",
+    "loginDescription": "Log in to manage your short links and QR codes.",
+    "registerTitle": "Sign up",
+    "registerDescription": "Create an account to save your short links, download QR codes and track clicks.",
+    "welcomeTitle": "Signed in"
+  },
+  "nav": {
+    "main": "Main navigation",
+    "home": "Home",
+    "features": "Features",
+    "account": "Account",
+    "signedIn": "Signed in",
+    "openMenu": "Open menu",
+    "toggleSidebar": "Toggle sidebar",
+    "login": "Log in",
+    "register": "Sign up",
+    "logout": "Log out",
+    "toggleTheme": "Toggle color scheme",
+    "language": "Language"
+  },
+  "home": {
+    "title": "Short links that just work",
+    "subtitle": "Turn long, messy URLs into short links and QR codes you can share anywhere.",
+    "form": {
+      "label": "Long URL",
+      "placeholder": "Paste a long link, e.g. https://example.com/blog/post",
+      "submit": "Shorten",
+      "invalid": "Enter a valid link, like https://example.com",
+      "result": "Your short link",
+      "copy": "Copy",
+      "copied": "Copied",
+      "downloadQr": "Download QR",
+      "qrAlt": "QR code for {url}",
+      "preview": "This is a preview, so the link isn't saved.",
+      "previewCta": "Create an account to keep your links."
+    },
+    "allFeatures": "See all features"
+  },
+  "features": {
+    "title": "Everything a link needs",
+    "subtitle": "Shorten, share and measure your links from one place. No clutter, no learning curve.",
+    "items": {
+      "shorten": {
+        "title": "Short links in one step",
+        "text": "Paste any URL and get a clean short link you can share in messages, posts and emails."
+      },
+      "qr": {
+        "title": "A QR code for every link",
+        "text": "Each short link comes with a QR code you can download for print, packaging or slides."
+      },
+      "analytics": {
+        "title": "Click analytics",
+        "text": "See clicks over time and where they come from, by country, city and device."
+      },
+      "alias": {
+        "title": "Custom aliases",
+        "text": "Pick a memorable ending like /spring-sale instead of a random code."
+      },
+      "expiry": {
+        "title": "Expiring links",
+        "text": "Set an end date for campaigns and limited-time offers. The link stops working when it ends."
+      },
+      "manage": {
+        "title": "All your links in one place",
+        "text": "Edit, update or delete your links from your account whenever you need to."
+      }
+    },
+    "cta": {
+      "title": "Ready to shorten your first link?",
+      "text": "It takes a few seconds and you get a QR code with it.",
+      "primary": "Shorten a link",
+      "secondary": "Create an account"
+    }
+  },
+  "auth": {
+    "tabs": "Log in or sign up",
+    "username": "Username",
+    "usernamePlaceholder": "e.g. jane.doe",
+    "usernameHint": "3–50 letters, numbers, dots, dashes or underscores.",
+    "password": "Password",
+    "passwordPlaceholder": "Enter your password",
+    "newPasswordPlaceholder": "Create a password",
+    "passwordRule": "At least 8 characters",
+    "confirmPassword": "Confirm password",
+    "confirmPlaceholder": "Repeat your password",
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Log in to manage your links and QR codes.",
+      "submit": "Log in"
+    },
+    "register": {
+      "title": "Create your account",
+      "subtitle": "Save your links, download QR codes and see how they perform.",
+      "submit": "Create account"
+    }
+  },
+  "welcome": {
+    "title": "You're signed in",
+    "text": "Signed in as {username}.",
+    "home": "Go to homepage"
+  },
+  "errors": {
+    "usernameRequired": "Enter your username",
+    "usernameLength": "Username must be 3 to 50 characters",
+    "usernameChars": "Use only letters, numbers, dots, underscores and hyphens",
+    "passwordRequired": "Enter your password",
+    "passwordLength": "Password must be at least 8 characters",
+    "passwordTooLong": "Password is too long",
+    "confirmRequired": "Confirm your password",
+    "passwordMismatch": "Passwords don't match",
+    "invalidCredentials": "Incorrect username or password",
+    "usernameTaken": "This username is already taken",
+    "invalidInput": "Please check your details and try again",
+    "unavailable": "Something went wrong on our side. Please try again in a moment.",
+    "notFoundTitle": "Page not found",
+    "notFoundText": "The page you're looking for doesn't exist or has moved.",
+    "unexpectedTitle": "Something went wrong",
+    "unexpectedText": "An unexpected error occurred. Please try again.",
+    "backHome": "Back to homepage"
+  },
+  "footer": {
+    "copyright": "© {year} {name}"
+  }
+}
