@@ -16,6 +16,7 @@ import {
   IconLayoutSidebarLeftExpand,
 } from "@tabler/icons-react";
 import { Link, useLocation, useMatches } from "react-router";
+import { surface } from "~/app-theme";
 import { ColorSchemeToggle } from "~/components/ColorSchemeToggle";
 import { Logo } from "~/components/Logo";
 import { site } from "~/config/site";
@@ -23,7 +24,6 @@ import { useI18n } from "~/lib/i18n/i18n";
 import type { MessageKey } from "~/lib/i18n/locales";
 import { useRootData } from "~/lib/root-data";
 import { SIDEBAR_COOKIE } from "~/lib/sidebar";
-import classes from "./AppLayout.module.css";
 import { Sidebar } from "./Sidebar";
 
 export type RouteHandle = { title?: MessageKey };
@@ -68,7 +68,7 @@ export function AppLayout({
   useHotkeys([["mod+B", toggleSidebar]]);
 
   return (
-    <Flex flex={1} mih="100dvh" className={classes.shell}>
+    <Flex flex={1} mih="100dvh" bg={surface.canvas}>
       <Box
         component="aside"
         display={{ base: "none", sm: "block" }}

@@ -44,7 +44,9 @@ Anything in `app/.server/` or named `*.server.ts` can never be bundled for the b
 ## Styling
 
 - Use Mantine components and style props (`p`, `bg`, `bd`, `display={{ base: "none", sm: "block" }}`, ...) for layout and spacing.
-- Use a CSS module only for what props can't express: hover/active states and colors that differ between light and dark mode (`light-dark()`).
+- For colors that differ between light and dark mode, use the tokens from `app-theme.tsx` (`bg={surface.muted}`, `color={accent}`). Each token is defined once with a light and dark value in `cssVariablesResolver`; add new ones there instead of writing `light-dark()` CSS.
+- Use a CSS module only for what props can't express, such as hover/active states.
+- The palette (`brand`, `gray`, `dark`) lives at the top of `app-theme.tsx`; change it there to re-brand.
 - `app.css` imports Mantine styles per component to keep CSS small. **When you use a new Mantine component, add its stylesheet there**, or it renders unstyled.
 
 ## Auth

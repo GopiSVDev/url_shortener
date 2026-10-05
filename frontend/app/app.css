@@ -35,6 +35,11 @@
 @import "@mantine/core/styles/Drawer.css";
 @import "@mantine/core/styles/NavLink.css";
 
+/* Always reserve scrollbar space so content doesn't shift between short and tall pages. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   display: flex;
   flex-direction: column;

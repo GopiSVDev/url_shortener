@@ -17,6 +17,7 @@ import {
   IconQrcode,
 } from "@tabler/icons-react";
 import { Link } from "react-router";
+import { accent, surface } from "~/app-theme";
 import type { RouteHandle } from "~/components/layout/AppLayout";
 import { Seo } from "~/components/Seo";
 import { useI18n } from "~/lib/i18n/i18n";
@@ -69,7 +70,7 @@ export default function Features() {
             <Icon
               size={24}
               stroke={1.5}
-              color="var(--mantine-primary-color-filled)"
+              color={accent}
               aria-hidden
             />
             <Title order={2} id={`feature-${key}`} fz="md" mt="md">
@@ -90,7 +91,7 @@ export default function Features() {
         mt="xl"
         p="xl"
         bdrs="var(--mantine-radius-lg)"
-        bg="var(--mantine-color-default-hover)"
+        bg={surface.muted}
       >
         <Box>
           <Text fw={600} size="lg">

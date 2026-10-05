@@ -1,13 +1,8 @@
-.tabs {
-  background-color: light-dark(
-    var(--mantine-color-gray-1),
-    var(--mantine-color-dark-6)
-  );
-}
+/* Only what Mantine props can't express: hover and active states. */
 
+/* Color lives here, not in a `c` prop, so :hover can override it. */
 .tab {
   color: var(--mantine-color-dimmed);
-
   transition:
     color 120ms ease,
     background-color 120ms ease;
@@ -18,10 +13,7 @@
 
   &[aria-current="page"] {
     color: var(--mantine-color-text);
-    background-color: light-dark(
-      var(--mantine-color-white),
-      var(--mantine-color-dark-4)
-    );
+    background-color: var(--app-surface-raised);
     box-shadow: var(--mantine-shadow-xs);
   }
 }

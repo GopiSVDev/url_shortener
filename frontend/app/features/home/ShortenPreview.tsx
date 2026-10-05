@@ -14,6 +14,7 @@ import {
 } from "@mantine/core";
 import { IconCheck, IconCopy, IconDownload } from "@tabler/icons-react";
 import { Link } from "react-router";
+import { surface } from "~/app-theme";
 import { useI18n } from "~/lib/i18n/i18n";
 import { useRootData } from "~/lib/root-data";
 import { createQrDataUrl, downloadQrPng } from "./qr";
@@ -99,7 +100,7 @@ export function ShortenPreview() {
             gap="lg"
             mt="md"
             p="md"
-            bg="var(--mantine-color-default-hover)"
+            bg={surface.muted}
             bd="1px solid var(--mantine-color-default-border)"
             bdrs="var(--mantine-radius-md)"
           >

@@ -19,6 +19,7 @@ import {
   IconCircleCheckFilled,
 } from "@tabler/icons-react";
 import { Form, NavLink, useNavigation } from "react-router";
+import { surface } from "~/app-theme";
 import { LogoMark } from "~/components/Logo";
 import { useI18n } from "~/lib/i18n/i18n";
 import type { AuthActionData } from "./auth-form.server";
@@ -69,7 +70,7 @@ export function AuthForm({
         >
           {t(`auth.${flow}.title`)}
         </Title>
-        <Text c="dimmed" size="sm" maw={320}>
+        <Text c="dimmed" size="sm">
           {t(`auth.${flow}.subtitle`)}
         </Text>
       </Stack>
@@ -179,7 +180,7 @@ function AuthTabs() {
       p={4}
       mt="xl"
       bdrs="var(--mantine-radius-md)"
-      className={classes.tabs}
+      bg={surface.subtle}
       aria-label={t("auth.tabs")}
     >
       {tabs.map(({ to, label }) => (
