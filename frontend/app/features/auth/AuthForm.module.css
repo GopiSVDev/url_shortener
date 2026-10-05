@@ -1,0 +1,27 @@
+.tabs {
+  background-color: light-dark(
+    var(--mantine-color-gray-1),
+    var(--mantine-color-dark-6)
+  );
+}
+
+.tab {
+  color: var(--mantine-color-dimmed);
+
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+
+  &:hover {
+    color: var(--mantine-color-text);
+  }
+
+  &[aria-current="page"] {
+    color: var(--mantine-color-text);
+    background-color: light-dark(
+      var(--mantine-color-white),
+      var(--mantine-color-dark-4)
+    );
+    box-shadow: var(--mantine-shadow-xs);
+  }
+}
