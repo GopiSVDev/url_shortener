@@ -1,10 +1,8 @@
 package com.urlshortener.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -36,6 +34,7 @@ public class User {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-//    @OneToMany(mappedBy = "createdBy")
-//    private List<ShortUrl> urls = new ArrayList<>();
+    @OneToMany(mappedBy = "createdBy")
+    @JsonManagedReference
+    private List<ShortUrl> urls = new ArrayList<>();
 }
