@@ -9,23 +9,36 @@ import com.urlshortener.repository.UserRepository;
 import com.urlshortener.util.Base62Encoder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SqlParameterValue;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class UrlService {
+    private static final String INSERT_SHORT_URL = """
+            insert into short_urls (original_url, short_code, expiration_date, created_at, updated_at, user_id)
+            values (?, ?, ?, ?, ?, ?)
+            returning id
+            """;
+    private static final String SELECT_REDIRECT_TARGET = """
+            select original_url, expiration_date from short_urls where short_code = ?
+            """;
+
     private final ShortUrlRepository shortUrlRepository;
     private final UserRepository userRepository;
     private final Base62Encoder base62Encoder;
+    private final JdbcTemplate jdbcTemplate;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -36,39 +49,61 @@ public class UrlService {
         }
 
         User owner = null;
-        
+
         if (username != null) {
             owner = userRepository.findByUsername(username)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
         }
 
+        Long ownerId = owner == null ? null : owner.getId();
+
         for (int i = 0; i < 5; i++) {
+            String shortCode = base62Encoder.generateRandomCode(7);
+            LocalDateTime now = LocalDateTime.now();
             try {
-                ShortUrl saved = shortUrlRepository.saveAndFlush(ShortUrl.builder()
+                Long id = jdbcTemplate.queryForObject(INSERT_SHORT_URL,
+                        Long.class, request.getOriginalUrl(), shortCode,
+                        new SqlParameterValue(Types.TIMESTAMP, request.getExpirationDate()),
+                        now, now,
+                        new SqlParameterValue(Types.BIGINT, ownerId));
+
+                return ShortUrlResponse.builder()
+                        .id(id)
+                        .shortCode(shortCode)
+                        .shortUrl(baseUrl + "/" + shortCode)
                         .originalUrl(request.getOriginalUrl())
-                        .shortCode(base62Encoder.generateRandomCode(7))
                         .expirationDate(request.getExpirationDate())
-                        .createdBy(owner)
-                        .build());
-                return mapToResponse(saved);
-            } catch (DataIntegrityViolationException e) {
+                        .createdAt(now)
+                        .build();
+
+            } catch (DuplicateKeyException e) {
                 // short code collision, try another
             }
         }
-
+        
         throw new IllegalStateException("Could not generate a unique short code");
     }
 
-    @Transactional(readOnly = true)
+    // Plain JDBC in autocommit: one round trip (no BEGIN READ ONLY), only the two columns a redirect needs
     public String getOriginalUrl(String shortCode) {
-        ShortUrl url = shortUrlRepository.findByShortCode(shortCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found"));
+        List<RedirectTarget> rows = jdbcTemplate.query(SELECT_REDIRECT_TARGET,
+                (rs, rowNum) -> new RedirectTarget(rs.getString(1), rs.getObject(2, LocalDateTime.class)),
+                shortCode);
 
-        if (url.getExpirationDate() != null && url.getExpirationDate().isBefore(LocalDateTime.now())) {
+        if (rows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found");
+        }
+
+        RedirectTarget target = rows.getFirst();
+
+        if (target.expirationDate() != null && target.expirationDate().isBefore(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.GONE, "Short URL has expired");
         }
 
-        return url.getOriginalUrl();
+        return target.originalUrl();
+    }
+
+    private record RedirectTarget(String originalUrl, LocalDateTime expirationDate) {
     }
 
     @Transactional(readOnly = true)

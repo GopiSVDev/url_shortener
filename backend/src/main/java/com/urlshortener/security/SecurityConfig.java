@@ -3,6 +3,7 @@ package com.urlshortener.security;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -14,6 +15,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -60,6 +62,22 @@ public class SecurityConfig {
                         .accessDeniedHandler((req, res, ex) -> writeJson(res, 403, "Forbidden", "Access denied")));
 
         return http.build();
+    }
+
+    // JwtAuthenticationFilter is a @Component, so Boot would also register it as a plain servlet filter
+    // and it would run outside the security chain too. It belongs only in the security chain.
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(JwtAuthenticationFilter filter) {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    // Redirects are public, anonymous and stateless, so they skip the security filters (~12% of a redirect's
+    // CPU in profiling). The request firewall still runs. Spring logs a warning for ignored paths; expected here.
+    @Bean
+    public WebSecurityCustomizer skipSecurityFiltersForRedirects() {
+        return web -> web.ignoring().requestMatchers(HttpMethod.GET, "/{shortCode:[a-zA-Z0-9]+}");
     }
 
     @Bean
