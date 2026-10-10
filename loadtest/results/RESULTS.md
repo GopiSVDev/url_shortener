@@ -31,8 +31,29 @@ Backend limited to 0.6 CPU, Postgres to 0.4 CPU.
 
 ## read: `GET /{code}` (redirect, 1M links, Zipf traffic)
 
+### Summary
+
+**1295 -> 2770 req/s (+114%)**, CPU per request 0.36 -> 0.18 ms (-48%), DB CPU 0.238 -> 0.127 cores, p99 under 30 ms.
+
+- Seeded a fixed dataset of 1M links and replayed Zipf-distributed traffic (97% live, 2% unknown, 1% expired links).
+- Replaced the JPA lookup in a read-only transaction with one JDBC select in autocommit, fetching only the two
+  columns a redirect needs (2 -> 1 statement, +41%).
+- Profiled with async-profiler and took public redirects out of the Spring Security filter chain (+9%), and ran
+  the JWT filter only inside the security chain with open-in-view off (-3% CPU per request in the profile).
+- Added an in-process Caffeine cache (100k entries, 404s cached, expiry checked per hit, evicted after commit on
+  update/delete): SQL per request 1.0 -> 0.24, DB CPU -59%, CPU per request -12%, capacity +32% (2625; a repeat
+  run held 2770). The capacity gain is larger than the CPU saving because most requests no longer compete for the
+  10 DB connections at the limit.
+- Chose Caffeine over Redis because backend CPU is the bottleneck and a Redis lookup would still cost a network round trip.
+- Now hardware bound: the backend sits at its 0.6 CPU limit, and ~75% of its CPU is HTTP handling (Tomcat, Spring MVC,
+  socket I/O) that every request pays.
+
+### Runs
+
 | Date | Stable req/s | vs previous | p90 ms | p95 ms | p99 ms | Errors | Target | CPU backend | CPU db | Note |
 |---|---:|---:|---:|---:|---:|---:|---|---|---|---|
 | 2026-10-09 | 1295 | - | 0.7 | 0.8 | 1.9 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.465 (0.6) | 0.238 (0.4) | baseline: no cache |
 | 2026-10-09 | 1820 | +40.5% | 0.6 | 0.6 | 1.4 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.493 (0.6) | 0.222 (0.4) | JdbcTemplate lookup in autocommit |
 | 2026-10-09 | 1990 | +9.3% | 0.5 | 0.5 | 1.8 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.467 (0.6) | 0.244 (0.4) | skip security filters for redirects |
+| 2026-10-10 | 2625 | +31.9% | 0.5 | 0.6 | 4.1 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.538 (0.6) | 0.1 (0.4) | Caffeine cache on redirects (100k entries) |
+| 2026-10-10 | 2770 | +5.5% | 0.6 | 0.7 | 29.6 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.512 (0.6) | 0.127 (0.4) | Caffeine cache without stats/metrics (repeat: profile -2%, inside noise; run-to-run variation, not a gain) |

@@ -1,5 +1,7 @@
 package com.urlshortener.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.urlshortener.dto.ShortUrlRequest;
 import com.urlshortener.dto.ShortUrlResponse;
 import com.urlshortener.entity.ShortUrl;
@@ -15,11 +17,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SqlParameterValue;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.Types;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -39,6 +44,14 @@ public class UrlService {
     private final UserRepository userRepository;
     private final Base62Encoder base62Encoder;
     private final JdbcTemplate jdbcTemplate;
+
+    // Redirect targets in memory: the backend CPU is the limit, so an in-process cache beats a network hop
+    // to Redis. 100k entries hold the hot links of the Zipf traffic; unknown codes are cached as NOT_FOUND.
+    // Entries are evicted on create/update/delete; the TTL bounds staleness from changes made outside the app.
+    private final Cache<String, RedirectTarget> redirectCache = Caffeine.newBuilder()
+            .maximumSize(100_000)
+            .expireAfterWrite(Duration.ofMinutes(10))
+            .build();
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -67,6 +80,9 @@ public class UrlService {
                         now, now,
                         new SqlParameterValue(Types.BIGINT, ownerId));
 
+                // the code may be cached as NOT_FOUND from an earlier request (autocommit: already committed)
+                redirectCache.invalidate(shortCode);
+
                 return ShortUrlResponse.builder()
                         .id(id)
                         .shortCode(shortCode)
@@ -84,18 +100,14 @@ public class UrlService {
         throw new IllegalStateException("Could not generate a unique short code");
     }
 
-    // Plain JDBC in autocommit: one round trip (no BEGIN READ ONLY), only the two columns a redirect needs
     public String getOriginalUrl(String shortCode) {
-        List<RedirectTarget> rows = jdbcTemplate.query(SELECT_REDIRECT_TARGET,
-                (rs, rowNum) -> new RedirectTarget(rs.getString(1), rs.getObject(2, LocalDateTime.class)),
-                shortCode);
+        RedirectTarget target = redirectCache.get(shortCode, this::loadRedirectTarget);
 
-        if (rows.isEmpty()) {
+        if (target == RedirectTarget.NOT_FOUND) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found");
         }
 
-        RedirectTarget target = rows.getFirst();
-
+        // checked on every hit, so a link that expires while cached returns 410 right away
         if (target.expirationDate() != null && target.expirationDate().isBefore(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.GONE, "Short URL has expired");
         }
@@ -103,7 +115,27 @@ public class UrlService {
         return target.originalUrl();
     }
 
+    // Plain JDBC in autocommit: one round trip (no BEGIN READ ONLY), only the two columns a redirect needs
+    private RedirectTarget loadRedirectTarget(String shortCode) {
+        List<RedirectTarget> rows = jdbcTemplate.query(SELECT_REDIRECT_TARGET,
+                (rs, rowNum) -> new RedirectTarget(rs.getString(1), rs.getObject(2, LocalDateTime.class)),
+                shortCode);
+
+        return rows.isEmpty() ? RedirectTarget.NOT_FOUND : rows.getFirst();
+    }
+
+    // After commit, so a concurrent redirect can't reload the old row into the cache before the change lands
+    private void evictAfterCommit(String shortCode) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                redirectCache.invalidate(shortCode);
+            }
+        });
+    }
+
     private record RedirectTarget(String originalUrl, LocalDateTime expirationDate) {
+        static final RedirectTarget NOT_FOUND = new RedirectTarget(null, null);
     }
 
     @Transactional(readOnly = true)
@@ -131,6 +163,7 @@ public class UrlService {
             existing.setExpirationDate(request.getExpirationDate());
         }
 
+        evictAfterCommit(shortCode);
         return mapToResponse(shortUrlRepository.save(existing));
     }
 
@@ -149,6 +182,7 @@ public class UrlService {
     @Transactional
     public void deleteUrl(String shortCode, String username) {
         shortUrlRepository.delete(findOwned(shortCode, username));
+        evictAfterCommit(shortCode);
     }
 
     private boolean isValidUrl(String url) {

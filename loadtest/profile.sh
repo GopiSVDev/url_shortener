@@ -67,6 +67,7 @@ total=$(awk '{ n += $NF } END { print n }' "$out/collapsed.txt")
       for (i = n; i >= 1; i--) { x = f[i]
         if (x ~ /org\/postgresql/) { layer = "Postgres JDBC driver"; break }
         if (x ~ /com\/zaxxer\/hikari/) { layer = "HikariCP"; break }
+        if (x ~ /com\/github\/benmanes\/caffeine/) { layer = "Caffeine cache"; break }
         if (x ~ /org\/hibernate\/validator/) { layer = "Bean Validation"; break }
         if (x ~ /org\/hibernate/) { layer = "Hibernate ORM"; break }
         if (x ~ /(tools|com\/fasterxml)\/jackson/) { layer = "Jackson JSON"; break }

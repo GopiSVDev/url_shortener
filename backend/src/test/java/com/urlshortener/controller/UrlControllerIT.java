@@ -171,6 +171,7 @@ class UrlControllerIT {
     void owner_canUpdate_andRedirectChanges() throws Exception {
         String token = newUserToken();
         String code = createOk(token, "https://example.com/old");
+        mvc.perform(get("/" + code)).andExpect(status().isFound()); // warm the redirect cache
 
         putJson(token, code, urlBody("https://example.org/new")).andExpect(status().isOk());
 
@@ -182,6 +183,7 @@ class UrlControllerIT {
     void owner_canDelete_thenRedirectIs404() throws Exception {
         String token = newUserToken();
         String code = createOk(token, "https://example.com");
+        mvc.perform(get("/" + code)).andExpect(status().isFound()); // warm the redirect cache
 
         deleteUrl(token, code).andExpect(status().isNoContent());
         mvc.perform(get("/" + code)).andExpect(status().isNotFound());
