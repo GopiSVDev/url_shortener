@@ -1,8 +1,8 @@
 import type { Route } from "./+types/login";
 import { Seo } from "~/components/Seo";
 import { AuthForm } from "~/features/auth/AuthForm";
-import { submitAuth } from "~/features/auth/auth-form.server";
-import { requireGuest } from "~/features/auth/session.server";
+import { submitAuth } from "~/.server/auth/auth-form";
+import { requireGuest } from "~/.server/auth/session";
 import { useI18n } from "~/lib/i18n/i18n";
 import type { RouteHandle } from "~/components/layout/AppLayout";
 

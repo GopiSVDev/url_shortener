@@ -8,13 +8,13 @@
     "loginDescription": "Log in to manage your short links and QR codes.",
     "registerTitle": "Sign up",
     "registerDescription": "Create an account to save your short links, download QR codes and track clicks.",
-    "welcomeTitle": "Signed in"
+    "linksTitle": "My links",
+    "analyticsTitle": "Analytics for /{code}"
   },
   "nav": {
     "main": "Main navigation",
     "home": "Home",
     "features": "Features",
-    "account": "Account",
     "signedIn": "Signed in",
     "openMenu": "Open menu",
     "toggleSidebar": "Toggle sidebar",
@@ -22,7 +22,9 @@
     "register": "Sign up",
     "logout": "Log out",
     "toggleTheme": "Toggle color scheme",
-    "language": "Language"
+    "language": "Language",
+    "links": "My links",
+    "analytics": "Analytics"
   },
   "home": {
     "title": "Short links that just work",
@@ -31,14 +33,16 @@
       "label": "Long URL",
       "placeholder": "Paste a long link, e.g. https://example.com/blog/post",
       "submit": "Shorten",
-      "invalid": "Enter a valid link, like https://example.com",
       "result": "Your short link",
       "copy": "Copy",
       "copied": "Copied",
       "downloadQr": "Download QR",
       "qrAlt": "QR code for {url}",
-      "preview": "This is a preview, so the link isn't saved.",
-      "previewCta": "Create an account to keep your links."
+      "options": "More options",
+      "saved": "Saved to your account.",
+      "savedCta": "See all your links.",
+      "anonymous": "Anyone can use this link.",
+      "anonymousCta": "Create an account to edit it and see its clicks."
     },
     "allFeatures": "See all features"
   },
@@ -56,11 +60,11 @@
       },
       "analytics": {
         "title": "Click analytics",
-        "text": "See clicks over time and where they come from, by country, city and device."
+        "text": "See clicks over time, unique visitors, where clicks come from and which browsers and devices people use."
       },
       "alias": {
         "title": "Custom aliases",
-        "text": "Pick a memorable ending like /spring-sale instead of a random code."
+        "text": "Pick a memorable ending like /spring-26 instead of a random code."
       },
       "expiry": {
         "title": "Expiring links",
@@ -100,10 +104,47 @@
       "submit": "Create account"
     }
   },
-  "welcome": {
-    "title": "You're signed in",
-    "text": "Signed in as {username}.",
-    "home": "Go to homepage"
+  "links": {
+    "title": "My links",
+    "count": "{count} links",
+    "new": "New link",
+    "emptyTitle": "No links yet",
+    "emptyText": "Shorten your first link and it will show up here.",
+    "alias": "Custom alias (optional)",
+    "aliasHint": "3–30 letters, numbers or hyphens",
+    "expiresAt": "Expires at (UTC, optional)",
+    "expiresHint": "The link stops working after this time",
+    "expiresEditHint": "Leave empty for a link that never expires",
+    "expired": "Expired",
+    "created": "Created {date}",
+    "expires": "expires {date}",
+    "clicks": "{count} clicks",
+    "actions": "Link actions",
+    "qr": "QR code",
+    "edit": "Edit link",
+    "delete": "Delete",
+    "deleteTitle": "Delete link?",
+    "deleteText": "{link} will stop working and its click history will be deleted. This can't be undone.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "viewStats": "View stats"
+  },
+  "analytics": {
+    "back": "My links",
+    "lastDays": "{days} days",
+    "periodClicks": "Clicks",
+    "uniqueVisitors": "Unique visitors",
+    "totalClicks": "All-time clicks",
+    "lastClick": "Last click",
+    "never": "No clicks yet",
+    "clicksPerDay": "Clicks per day (UTC)",
+    "dayTooltip": "{date}: {count} clicks",
+    "botsExcluded": "{count} clicks from bots and link previews are not counted.",
+    "referrers": "Referrers",
+    "browsers": "Browsers",
+    "operatingSystems": "Operating systems",
+    "devices": "Devices",
+    "noData": "No clicks in this period"
   },
   "errors": {
     "usernameRequired": "Enter your username",
@@ -122,7 +163,14 @@
     "notFoundText": "The page you're looking for doesn't exist or has moved.",
     "unexpectedTitle": "Something went wrong",
     "unexpectedText": "An unexpected error occurred. Please try again.",
-    "backHome": "Back to homepage"
+    "backHome": "Back to homepage",
+    "urlRequired": "Enter a link to shorten",
+    "urlInvalid": "Enter a valid link, like https://example.com",
+    "aliasInvalid": "Use 3-30 letters, numbers or hyphens (not at the start or end)",
+    "aliasTaken": "This alias is already taken",
+    "expiryPast": "Pick a time in the future",
+    "linkNotFound": "This link no longer exists",
+    "tooManyRequests": "Too many attempts. Please wait a minute and try again."
   },
   "footer": {
     "copyright": "© {year} {name}"

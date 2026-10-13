@@ -14,7 +14,7 @@ import {
   IconLayoutGrid,
   IconLogin2,
   IconLogout,
-  IconUserCircle,
+  IconLink,
   type Icon,
 } from "@tabler/icons-react";
 import { Form, Link, useLocation } from "react-router";
@@ -43,9 +43,9 @@ export function Sidebar({ collapsed = false, onNavigate }: SidebarProps) {
     ...(user
       ? [
           {
-            to: "/welcome",
-            label: "nav.account",
-            icon: IconUserCircle,
+            to: "/links",
+            label: "nav.links",
+            icon: IconLink,
           } as const,
         ]
       : []),
@@ -64,7 +64,10 @@ export function Sidebar({ collapsed = false, onNavigate }: SidebarProps) {
       <Stack gap={2} mt={8}>
         {items.map(({ to, label, icon: Icon }) => {
           const href = localize(to);
-          const active = pathname === href;
+          // "My links" stays active on a link's analytics page
+          const active =
+            pathname === href ||
+            (to !== "/" && pathname.startsWith(`${href}/`));
           return (
             <Tooltip
               key={to}

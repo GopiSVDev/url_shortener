@@ -20,12 +20,20 @@ type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
   token?: string;
+  from?: Request;
 };
+
+// Behind a reverse proxy the incoming request carries the browser's IP in X-Forwarded-For; pass it on.
+// Without a proxy there is none, and the backend sees this server's IP.
+function forwardedFor(request: Request | undefined): Record<string, string> {
+  const value = request?.headers.get("X-Forwarded-For");
+  return value ? { "X-Forwarded-For": value } : {};
+}
 
 export async function api<T extends z.ZodType>(
   path: string,
   schema: T,
-  { method = "GET", body, token }: RequestOptions = {},
+  { method = "GET", body, token, from }: RequestOptions = {},
 ): Promise<z.infer<T>> {
   const response = await fetch(new URL(path, env.apiUrl), {
     method,
@@ -33,6 +41,7 @@ export async function api<T extends z.ZodType>(
       Accept: "application/json",
       ...(body !== undefined && { "Content-Type": "application/json" }),
       ...(token && { Authorization: `Bearer ${token}` }),
+      ...forwardedFor(from),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(10_000),
@@ -44,5 +53,8 @@ export async function api<T extends z.ZodType>(
       await response.json().catch(() => null),
     );
   }
-  return schema.parse(await response.json());
+  // 204 No Content
+  return schema.parse(
+    response.status === 204 ? undefined : await response.json(),
+  );
 }

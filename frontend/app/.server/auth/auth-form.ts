@@ -3,8 +3,8 @@ import { z } from "zod";
 import { ApiError } from "~/.server/api";
 import { parseForm, type FormErrors } from "~/.server/form";
 import { localizePath, type MessageKey } from "~/lib/i18n/locales";
-import { login, register } from "./auth-api.server";
-import { authContext } from "./session.server";
+import { login, register } from "./auth-api";
+import { authContext } from "./session";
 
 type Flow = "login" | "register";
 
@@ -58,10 +58,10 @@ export async function submitAuth(
 
   try {
     const { username, password } = form.data;
-    const tokens = await (flow === "login" ? login : register)({
-      username,
-      password,
-    });
+    const tokens = await (flow === "login" ? login : register)(
+      { username, password },
+      request,
+    );
 
     context.get(authContext).signIn(tokens);
   } catch (error) {
@@ -76,12 +76,13 @@ export async function submitAuth(
     );
   }
 
-  throw redirect(localizePath("/welcome", params.lang));
+  throw redirect(localizePath("/links", params.lang));
 }
 
 function errorKey(status: number, flow: Flow): MessageKey {
   if (status === 401) return "errors.invalidCredentials";
   if (status === 409) return "errors.usernameTaken";
+  if (status === 429) return "errors.tooManyRequests";
   // Login rejects over-long input with 400; never reveal more than "incorrect".
   if (status === 400)
     return flow === "login"

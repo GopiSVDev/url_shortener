@@ -22,7 +22,7 @@ import { Form, NavLink, useNavigation } from "react-router";
 import { surface } from "~/app-theme";
 import { LogoMark } from "~/components/Logo";
 import { useI18n } from "~/lib/i18n/i18n";
-import type { AuthActionData } from "./auth-form.server";
+import type { AuthActionData } from "~/.server/auth/auth-form";
 import classes from "./AuthForm.module.css";
 
 type Flow = "login" | "register";

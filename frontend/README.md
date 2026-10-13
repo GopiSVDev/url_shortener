@@ -27,11 +27,14 @@ app/
   routes.ts              route config (all pages sit under an optional /:lang prefix)
   root.tsx               document shell, auth middleware, locale + user loader
   routes/                thin route modules (loader/action + page component)
-  features/auth/         backend calls, session cookie + token refresh, login/sign-up form
-  features/home/         shorten demo and circuit-board QR code renderer
+  features/auth/         login/sign-up form
+  features/links/        shorten form, copy button, QR code renderer, URL and date formatting
   components/layout/     app shell: collapsible sidebar (drawer on mobile) + top bar
   components/            shared UI (Seo, Logo, theme toggle, 404 and error pages, ...)
-  .server/               server-only infrastructure: API client, env, form parsing, JWT
+  .server/               server-only code (never sent to the browser)
+    api.ts, env.ts, form.ts, jwt.ts   API client, env vars, form parsing, JWT decoding
+    auth/                backend auth calls, session cookie + token refresh, auth form action
+    links/               backend link and analytics calls, link form validation
   lib/                   code shared by browser and server: i18n, root data, helpers
   locales/               translations, one JSON file per language
   config/site.ts         brand name and indexed pages
@@ -39,7 +42,7 @@ app/
 
 ### Server-only code
 
-Anything in `app/.server/` or named `*.server.ts` can never be bundled for the browser; importing it from client code fails the build. Shared server infrastructure goes in `.server/`; server code that belongs to one feature stays next to it with the `.server.ts` suffix (e.g. `features/auth/session.server.ts`).
+All server-only code lives in `app/.server/`: shared infrastructure at the top, feature code in a subfolder per feature (`.server/auth/`, `.server/links/`). React Router never bundles this folder for the browser, and importing it from client code fails the build. Client components may still use `import type` from it (types are erased), for example the `Link` type from `.server/links/links-api.ts`.
 
 ## Styling
 
@@ -52,7 +55,7 @@ Anything in `app/.server/` or named `*.server.ts` can never be bundled for the b
 ## Auth
 
 - Login/sign-up post to route actions, which call the backend and store the access + refresh tokens in an httpOnly, signed `__session` cookie.
-- The root middleware (`features/auth/session.server.ts`) refreshes the access token through `/api/auth/refresh` when it is within 30s of expiry. If the refresh token is rejected, it clears the session.
+- The root middleware (`.server/auth/session.ts`) refreshes the access token through `/api/auth/refresh` when it is within 30s of expiry. If the refresh token is rejected, it clears the session.
 - Protect a route with `export const middleware = [requireUser]`; read the user or token with `context.get(authContext)`.
 
 ## Layout and pages
@@ -64,7 +67,7 @@ Anything in `app/.server/` or named `*.server.ts` can never be bundled for the b
 
 ## QR codes
 
-`features/home/qr.ts` draws QR codes in a "circuit board" style with a gradient. `uqr` only encodes the data; the SVG is custom. It uses the highest error correction level and keeps the finder patterns solid so codes stay scannable. Check that codes still scan after changing the style.
+`features/links/qr.ts` draws QR codes in a "circuit board" style with a gradient. `uqr` only encodes the data; the SVG is custom. It uses the highest error correction level and keeps the finder patterns solid so codes stay scannable. Check that codes still scan after changing the style.
 
 ## Adding a language
 

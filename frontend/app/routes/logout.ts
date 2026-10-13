@@ -1,6 +1,6 @@
 import { redirect } from "react-router";
 import type { Route } from "./+types/logout";
-import { authContext } from "~/features/auth/session.server";
+import { authContext } from "~/.server/auth/session";
 import { localizePath } from "~/lib/i18n/locales";
 
 // Tokens are stateless, so logging out only clears the session cookie.

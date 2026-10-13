@@ -7,7 +7,7 @@ import {
 import { env } from "~/.server/env";
 import { localizePath } from "~/lib/i18n/locales";
 import { decodeJwt, isExpired } from "~/.server/jwt";
-import { refresh, type Tokens } from "./auth-api.server";
+import { refresh, type Tokens } from "./auth-api";
 
 export type User = { username: string };
 
@@ -105,6 +105,6 @@ export const requireGuest: MiddlewareFunction<Response> = ({
   params,
 }) => {
   if (context.get(authContext).user) {
-    throw redirect(localizePath("/welcome", params.lang));
+    throw redirect(localizePath("/links", params.lang));
   }
 };

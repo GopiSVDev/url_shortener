@@ -18,7 +18,7 @@ import {
 import type { Route } from "./+types/root";
 import "./app.css";
 import { AppTheme } from "~/app-theme";
-import { authContext, authMiddleware } from "~/features/auth/session.server";
+import { authContext, authMiddleware } from "~/.server/auth/session";
 import { getSiteUrl } from "~/.server/env";
 import { I18nProvider } from "~/lib/i18n/i18n";
 import { defaultLocale, loadMessages, resolveLocale } from "~/lib/i18n/locales";

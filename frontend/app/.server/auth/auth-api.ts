@@ -9,17 +9,19 @@ const tokensSchema = z.object({
 export type Tokens = z.infer<typeof tokensSchema>;
 export type Credentials = { username: string; password: string };
 
-export function login(credentials: Credentials) {
+export function login(credentials: Credentials, from: Request) {
   return api("/api/auth/login", tokensSchema, {
     method: "POST",
     body: credentials,
+    from,
   });
 }
 
-export function register(credentials: Credentials) {
+export function register(credentials: Credentials, from: Request) {
   return api("/api/auth/register", tokensSchema, {
     method: "POST",
     body: credentials,
+    from,
   });
 }
 
