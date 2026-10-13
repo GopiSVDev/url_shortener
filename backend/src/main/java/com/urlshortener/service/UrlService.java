@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.SqlParameterValue;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +27,11 @@ import java.net.URISyntaxException;
 import java.sql.Types;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -36,18 +41,30 @@ public class UrlService {
             values (?, ?, ?, ?, ?, ?)
             returning id
             """;
+
     private static final String SELECT_REDIRECT_TARGET = """
-            select original_url, expiration_date from short_urls where short_code = ?
+            select id, original_url, expiration_date from short_urls where short_code = ?
             """;
+
+    private static final String COUNT_CLICKS_PER_LINK = """
+            select st.short_url_id, st.click_count from link_stats st
+            join short_urls s on s.id = st.short_url_id
+            where s.user_id = ?
+            """;
+
+    private static final Set<String> RESERVED_ALIASES = Set.of("api", "actuator", "error");
 
     private final ShortUrlRepository shortUrlRepository;
     private final UserRepository userRepository;
     private final Base62Encoder base62Encoder;
     private final JdbcTemplate jdbcTemplate;
 
-    // Redirect targets in memory: the backend CPU is the limit, so an in-process cache beats a network hop
-    // to Redis. 100k entries hold the hot links of the Zipf traffic; unknown codes are cached as NOT_FOUND.
-    // Entries are evicted on create/update/delete; the TTL bounds staleness from changes made outside the app.
+    // Redirect targets in memory: the backend CPU is the limit, so an in-process
+    // cache beats a network hop
+    // to Redis. 100k entries hold the hot links of the Zipf traffic; unknown codes
+    // are cached as NOT_FOUND.
+    // Entries are evicted on create/update/delete; the TTL bounds staleness from
+    // changes made outside the app.
     private final Cache<String, RedirectTarget> redirectCache = Caffeine.newBuilder()
             .maximumSize(100_000)
             .expireAfterWrite(Duration.ofMinutes(10))
@@ -70,37 +87,59 @@ public class UrlService {
 
         Long ownerId = owner == null ? null : owner.getId();
 
-        for (int i = 0; i < 5; i++) {
-            String shortCode = base62Encoder.generateRandomCode(7);
-            LocalDateTime now = LocalDateTime.now();
+        String alias = request.getAlias();
+
+        if (alias != null) {
+            if (RESERVED_ALIASES.contains(alias.toLowerCase(Locale.ROOT))) {
+                throw aliasTaken();
+            }
+
             try {
-                Long id = jdbcTemplate.queryForObject(INSERT_SHORT_URL,
-                        Long.class, request.getOriginalUrl(), shortCode,
-                        new SqlParameterValue(Types.TIMESTAMP, request.getExpirationDate()),
-                        now, now,
-                        new SqlParameterValue(Types.BIGINT, ownerId));
+                return insert(request, alias, ownerId);
+            } catch (DuplicateKeyException e) {
+                throw aliasTaken();
+            }
+        }
 
-                // the code may be cached as NOT_FOUND from an earlier request (autocommit: already committed)
-                redirectCache.invalidate(shortCode);
-
-                return ShortUrlResponse.builder()
-                        .id(id)
-                        .shortCode(shortCode)
-                        .shortUrl(baseUrl + "/" + shortCode)
-                        .originalUrl(request.getOriginalUrl())
-                        .expirationDate(request.getExpirationDate())
-                        .createdAt(now)
-                        .build();
-
+        for (int i = 0; i < 5; i++) {
+            try {
+                return insert(request, base62Encoder.generateRandomCode(7), ownerId);
             } catch (DuplicateKeyException e) {
                 // short code collision, try another
             }
         }
-        
+
         throw new IllegalStateException("Could not generate a unique short code");
     }
 
-    public String getOriginalUrl(String shortCode) {
+    private ShortUrlResponse insert(ShortUrlRequest request, String shortCode, Long ownerId) {
+        LocalDateTime now = LocalDateTime.now();
+
+        Long id = jdbcTemplate.queryForObject(INSERT_SHORT_URL,
+                Long.class, request.getOriginalUrl(), shortCode,
+                new SqlParameterValue(Types.TIMESTAMP, request.getExpirationDate()), now, now,
+                new SqlParameterValue(Types.BIGINT, ownerId));
+
+        // the code may be cached as NOT_FOUND from an earlier request (autocommit:
+        // already committed )
+        redirectCache.invalidate(shortCode);
+
+        return ShortUrlResponse.builder()
+                .id(id)
+                .shortCode(shortCode)
+                .shortUrl(baseUrl + "/" + shortCode)
+                .originalUrl(request.getOriginalUrl())
+                .expirationDate(request.getExpirationDate())
+                .createdAt(now)
+                .build();
+    }
+
+    private static ResponseStatusException aliasTaken() {
+        return new ResponseStatusException(HttpStatus.CONFLICT, "This alias is already taken");
+    }
+
+    // Returns the link to redirect to: its id (for click recording) and its original URL
+    public RedirectTarget getRedirectTarget(String shortCode) {
         RedirectTarget target = redirectCache.get(shortCode, this::loadRedirectTarget);
 
         if (target == RedirectTarget.NOT_FOUND) {
@@ -112,19 +151,20 @@ public class UrlService {
             throw new ResponseStatusException(HttpStatus.GONE, "Short URL has expired");
         }
 
-        return target.originalUrl();
+        return target;
     }
 
-    // Plain JDBC in autocommit: one round trip (no BEGIN READ ONLY), only the two columns a redirect needs
+    // Plain JDBC in autocommit: one round trip (no BEGIN READ ONLY), only the
+    // columns a redirect needs
     private RedirectTarget loadRedirectTarget(String shortCode) {
         List<RedirectTarget> rows = jdbcTemplate.query(SELECT_REDIRECT_TARGET,
-                (rs, rowNum) -> new RedirectTarget(rs.getString(1), rs.getObject(2, LocalDateTime.class)),
-                shortCode);
+                (rs, rowNum) -> new RedirectTarget(rs.getLong(1), rs.getString(2), rs.getObject(3, LocalDateTime.class)), shortCode);
 
         return rows.isEmpty() ? RedirectTarget.NOT_FOUND : rows.getFirst();
     }
 
-    // After commit, so a concurrent redirect can't reload the old row into the cache before the change lands
+    // After commit, so a concurrent redirect can't reload the old row into the
+    // cache before the change lands
     private void evictAfterCommit(String shortCode) {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
@@ -134,8 +174,8 @@ public class UrlService {
         });
     }
 
-    private record RedirectTarget(String originalUrl, LocalDateTime expirationDate) {
-        static final RedirectTarget NOT_FOUND = new RedirectTarget(null, null);
+    public record RedirectTarget(long id, String originalUrl, LocalDateTime expirationDate) {
+        static final RedirectTarget NOT_FOUND = new RedirectTarget(0, null, null);
     }
 
     @Transactional(readOnly = true)
@@ -143,9 +183,18 @@ public class UrlService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 
-        return shortUrlRepository.findAllByCreatedBy(user)
+        Map<Long, Long> clickCounts = new HashMap<>();
+
+        jdbcTemplate.query(COUNT_CLICKS_PER_LINK,
+                (RowCallbackHandler) rs -> clickCounts.put(rs.getLong(1), rs.getLong(2)), user.getId());
+
+        return shortUrlRepository.findAllByCreatedByOrderByCreatedAtDesc(user)
                 .stream()
-                .map(this::mapToResponse)
+                .map(url -> {
+                    ShortUrlResponse response = mapToResponse(url);
+                    response.setClickCount(clickCounts.getOrDefault(url.getId(), 0L));
+                    return response;
+                })
                 .toList();
     }
 
@@ -158,16 +207,14 @@ public class UrlService {
         }
 
         existing.setOriginalUrl(request.getOriginalUrl());
-
-        if (request.getExpirationDate() != null) {
-            existing.setExpirationDate(request.getExpirationDate());
-        }
+        existing.setExpirationDate(request.getExpirationDate());
 
         evictAfterCommit(shortCode);
         return mapToResponse(shortUrlRepository.save(existing));
     }
 
-    private ShortUrl findOwned(String shortCode, String username) {
+    // Call inside a transaction: reads the lazy owner
+    public ShortUrl findOwned(String shortCode, String username) {
         ShortUrl url = shortUrlRepository.findByShortCode(shortCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found"));
 
@@ -176,6 +223,7 @@ public class UrlService {
         if (owner == null || !owner.getUsername().equals(username)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your URL");
         }
+        
         return url;
     }
 

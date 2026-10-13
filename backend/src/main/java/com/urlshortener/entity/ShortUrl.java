@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "short_urls", indexes = {
-       @Index(name = "idx_short_code", columnList = "short_code", unique = true)
+       @Index(name = "idx_short_code", columnList = "short_code", unique = true),
+       @Index(name = "idx_short_urls_user_id", columnList = "user_id")
 })
 @Getter
 @Setter
@@ -22,7 +23,7 @@ public class ShortUrl {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "short_code", nullable = false, unique = true, length = 10)
+    @Column(name = "short_code", nullable = false, length = 32)
     private String shortCode;
 
     @Column(name = "original_url", nullable = false, columnDefinition = "TEXT")

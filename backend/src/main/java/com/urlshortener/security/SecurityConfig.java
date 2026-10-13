@@ -77,7 +77,7 @@ public class SecurityConfig {
     // CPU in profiling). The request firewall still runs. Spring logs a warning for ignored paths; expected here.
     @Bean
     public WebSecurityCustomizer skipSecurityFiltersForRedirects() {
-        return web -> web.ignoring().requestMatchers(HttpMethod.GET, "/{shortCode:[a-zA-Z0-9]+}");
+        return web -> web.ignoring().requestMatchers(HttpMethod.GET, "/{shortCode:[a-zA-Z0-9-]+}");
     }
 
     @Bean

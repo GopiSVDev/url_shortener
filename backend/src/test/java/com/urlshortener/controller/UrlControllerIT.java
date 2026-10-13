@@ -137,6 +137,39 @@ class UrlControllerIT {
         create(null, body).andExpect(status().isBadRequest());
     }
 
+    // ---------- custom alias ----------
+
+    @Test
+    void create_withAlias_usesIt_andRedirects() throws Exception {
+        String alias = "a-" + unique().substring(1, 7);
+        create(null, "{\"originalUrl\":\"https://example.com\",\"alias\":\"%s\"}".formatted(alias))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.shortCode").value(alias));
+        mvc.perform(get("/" + alias)).andExpect(status().isFound());
+    }
+
+    @Test
+    void create_withTakenAlias_returns409() throws Exception {
+        String alias = unique().substring(0, 8);
+        String body = "{\"originalUrl\":\"https://example.com\",\"alias\":\"%s\"}".formatted(alias);
+        create(null, body).andExpect(status().isCreated());
+        create(null, body).andExpect(status().isConflict());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"api", "API", "actuator", "error"})
+    void create_withReservedAlias_returns409LikeTaken(String alias) throws Exception {
+        create(null, "{\"originalUrl\":\"https://example.com\",\"alias\":\"%s\"}".formatted(alias))
+                .andExpect(status().isConflict());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ab", "-abc", "abc-", "has space", "this-alias-is-way-too-long-for-a-link"})
+    void create_withInvalidAlias_returns400(String alias) throws Exception {
+        create(null, "{\"originalUrl\":\"https://example.com\",\"alias\":\"%s\"}".formatted(alias))
+                .andExpect(status().isBadRequest());
+    }
+
     // ---------- redirect ----------
 
     @Test

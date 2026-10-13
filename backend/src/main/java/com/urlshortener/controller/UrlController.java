@@ -3,8 +3,12 @@ package com.urlshortener.controller;
 import com.urlshortener.dto.ShortUrlRequest;
 import com.urlshortener.dto.ShortUrlResponse;
 import com.urlshortener.service.UrlService;
+import com.urlshortener.service.UrlService.RedirectTarget;
+import com.urlshortener.service.analytics.ClickRecorder;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,12 +22,17 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UrlController {
     private final UrlService urlService;
+    private final ClickRecorder clickRecorder;
 
-    @GetMapping("/{shortCode:[a-zA-Z0-9]+}")
-    public ResponseEntity<Void> redirect(@PathVariable String shortCode) {
-        String originalUrl = urlService.getOriginalUrl(shortCode);
+    @GetMapping("/{shortCode:[a-zA-Z0-9-]+}")
+    public ResponseEntity<Void> redirect(@PathVariable String shortCode, HttpServletRequest request) {
+        RedirectTarget target = urlService.getRedirectTarget(shortCode);
+
+        clickRecorder.record(target.id(), request.getRemoteAddr(),
+                request.getHeader(HttpHeaders.USER_AGENT), request.getHeader(HttpHeaders.REFERER));
+        
         return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(originalUrl))
+                .location(URI.create(target.originalUrl()))
                 .build();
     }
 

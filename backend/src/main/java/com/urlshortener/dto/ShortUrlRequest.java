@@ -16,22 +16,30 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ShortUrlRequest {
-    private static final java.util.regex.Pattern HAS_SCHEME =
-            java.util.regex.Pattern.compile("^[a-zA-Z][a-zA-Z0-9+.-]*://.*");
+    private static final java.util.regex.Pattern HAS_SCHEME = java.util.regex.Pattern
+            .compile("^[a-zA-Z][a-zA-Z0-9+.-]*://.*");
 
     private String originalUrl;
 
     @Future(message = "Expiration date must be in the future")
     private LocalDateTime expirationDate;
 
+    private String alias;
+
     @NotBlank(message = "Original URL cannot be empty")
     @Size(max = 2048, message = "URL is too long")
     @Pattern(regexp = "(?i)^https?://.+", message = "URL must start with http:// or https://")
     public String getOriginalUrl() {
-        if (originalUrl == null) return null;
+        if (originalUrl == null)
+            return null;
         String trimmed = originalUrl.trim();
         return (trimmed.isEmpty() || HAS_SCHEME.matcher(trimmed).matches())
                 ? trimmed
                 : "https://" + trimmed;
+    }
+
+    @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9-]{1,28}[A-Za-z0-9]$", message = "Alias must be 3-30 letters, numbers or hyphens, not starting or ending with a hyphen")
+    public String getAlias() {
+        return alias == null || alias.isBlank() ? null : alias.trim();
     }
 }

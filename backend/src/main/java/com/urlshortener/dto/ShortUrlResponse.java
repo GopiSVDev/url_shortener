@@ -1,5 +1,6 @@
 package com.urlshortener.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -16,4 +17,7 @@ public class ShortUrlResponse {
     private String originalUrl;
     private LocalDateTime createdAt;
     private LocalDateTime expirationDate;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Long clickCount;
 }
