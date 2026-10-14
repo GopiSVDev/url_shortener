@@ -15,6 +15,7 @@ run on the host, on other cores.
 | 2026-10-14 | 795 | - | 66.3 | 167.2 | 399.9 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.497 (1) | 0.304 (1) | baseline |
 | 2026-10-14 | 830 | +4.4% | 31.9 | 78.9 | 256.3 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.499 (1) | 0.315 (1) | disable security observations |
 | 2026-10-14 | 1190 | +43.4% | 8.7 | 18.9 | 110.3 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.488 (1) | 0.25 (1) | JdbcTemplate autocommit insert |
+| 2026-10-14 | 1140 | -4.2% | 6.8 | 13.5 | 102 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.48 (1) | 0.221 (1) | tomcat threads 200 -> 50 (no gain: the queue moves into Tomcat, the limit is the WAL sync per commit; reverted) |
 
 ## read: `GET /{code}` (redirect, 1M links, Zipf traffic)
 
