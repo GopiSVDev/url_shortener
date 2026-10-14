@@ -7,6 +7,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # synchronous_commit=off: commits return before the WAL is synced to disk (the WAL writer syncs it
+    # within ~200 ms). A crash can lose the last ~0.6 s of commits, never corrupts. Chosen because the
+    # WAL sync per commit (~1-2 ms on this disk) was the write bottleneck.
     command:
       [
         "postgres",
@@ -14,6 +17,8 @@ services:
         "shared_preload_libraries=pg_stat_statements",
         "-c",
         "pg_stat_statements.track=all",
+        "-c",
+        "synchronous_commit=off",
       ]
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
