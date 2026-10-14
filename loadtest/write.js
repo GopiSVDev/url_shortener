@@ -5,13 +5,13 @@
 // Single run by hand:
 //   RATE=200 DURATION=1m k6 run loadtest/write.js
 //
-// Env: RATE (req/s, default 50), DURATION (default 1m), BASE_URL (default http://localhost:4000)
+// Env: RATE (req/s, default 50), DURATION (default 1m), BASE_URL (default http://10.24.21.249:4000, the LXD VM)
 
 import http from 'k6/http';
 import { check } from 'k6';
 import exec from 'k6/execution';
 
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:4000';
+const BASE_URL = __ENV.BASE_URL || 'http://10.24.21.249:4000';
 const RATE = Number(__ENV.RATE || 50);
 
 export const options = {

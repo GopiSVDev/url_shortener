@@ -12,13 +12,13 @@
 //    2% unknown codes, from a fixed pool of 10,000 (8 chars, seeded codes are 7)  -> 404
 //    1% expired links, uniform                                                     -> 410
 //
-// Env: RATE (req/s, default 50), DURATION (default 1m), BASE_URL (default http://localhost:4000)
+// Env: RATE (req/s, default 50), DURATION (default 1m), BASE_URL (default http://10.24.21.249:4000, the LXD VM)
 
 import http from 'k6/http';
 import { check } from 'k6';
 import { SharedArray } from 'k6/data';
 
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:4000';
+const BASE_URL = __ENV.BASE_URL || 'http://10.24.21.249:4000';
 const RATE = Number(__ENV.RATE || 50);
 
 const lines = (file) => open(file).split('\n').filter((l) => l.length > 0);

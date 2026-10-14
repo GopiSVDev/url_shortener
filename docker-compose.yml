@@ -2,15 +2,14 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: url-shortener-db
-    # App budget: 1 CPU / 2 GB total, split between backend and db
-    cpus: 0.4
-    mem_limit: 800m
-    memswap_limit: 800m
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # synchronous_commit=off: commits return before the WAL is synced to disk (the WAL writer syncs it
+    # within ~200 ms). A crash can lose the last ~0.6 s of commits, never corrupts. Chosen because the
+    # WAL sync per commit (~1-2 ms on this disk) was the write bottleneck.
     command:
       [
         "postgres",
@@ -18,6 +17,8 @@ services:
         "shared_preload_libraries=pg_stat_statements",
         "-c",
         "pg_stat_statements.track=all",
+        "-c",
+        "synchronous_commit=off",
       ]
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -49,14 +50,12 @@ services:
     build:
       context: ./backend
     container_name: url-shortener-backend
-    cpus: 0.6
-    mem_limit: 1248m
-    memswap_limit: 1248m
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-4000}:4000"
     environment:
-      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70
+      # Fixed heap: with MaxRAMPercentage=70 the heap grew to 750 MB and the 2 GB VM neared OOM in long runs
+      JAVA_TOOL_OPTIONS: -Xmx512m
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
@@ -83,53 +82,36 @@ services:
       retries: 5
       start_period: 20s
 
-  # --- Monitoring (measuring tools, not part of the 1 CPU / 2 GB app budget) ---
+  # --- Load test monitoring: runs on the laptop, the app (postgres, backend) runs in the LXD VM ---
+  # docker compose --profile monitoring up -d prometheus postgres-exporter
+  # Host networking so Prometheus reaches the VM and k6 reaches Prometheus on localhost:9090.
   prometheus:
     image: prom/prometheus:v3.5.0
     container_name: url-shortener-prometheus
+    profiles: [monitoring]
     restart: unless-stopped
+    network_mode: host
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --web.enable-remote-write-receiver
-    ports:
-      - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
 
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.52.1
-    container_name: url-shortener-cadvisor
-    restart: unless-stopped
-    privileged: true
-    command:
-      - --housekeeping_interval=5s
-      - --docker_only=true
-      - --store_container_labels=false
-    devices:
-      - /dev/kmsg
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
     container_name: url-shortener-postgres-exporter
+    profiles: [monitoring]
     restart: unless-stopped
+    network_mode: host
     command:
       - --collector.stat_statements
       - --collector.stat_statements.include_query
       - --collector.stat_statements.query_length=200
     environment:
-      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB}?sslmode=disable
+      DATA_SOURCE_URI: ${VM_IP:-10.24.21.249}:${POSTGRES_PORT:-5432}/${POSTGRES_DB}?sslmode=disable
       DATA_SOURCE_USER: ${POSTGRES_USER}
       DATA_SOURCE_PASS: ${POSTGRES_PASSWORD}
-    depends_on:
-      postgres:
-        condition: service_healthy
 
   frontend:
     build:

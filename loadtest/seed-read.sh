@@ -12,7 +12,8 @@ here="$(cd "$(dirname "$0")" && pwd)"
 links="${LINKS:-1000000}"
 db_user="${POSTGRES_USER:-admin}"
 db_name="${POSTGRES_DB:-urlshortenerdb}"
-psql=(docker exec -i url-shortener-db psql -U "$db_user" -d "$db_name" -v ON_ERROR_STOP=1 -q)
+vm="${VM:-url-shortener}"
+psql=(sudo lxc exec "$vm" -- docker exec -i url-shortener-db psql -U "$db_user" -d "$db_name" -v ON_ERROR_STOP=1 -q)
 
 echo "Seeding $links links ..."
 start=$(date +%s)

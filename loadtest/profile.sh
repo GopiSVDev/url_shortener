@@ -4,7 +4,7 @@
 #   loadtest/profile.sh [test] [rate] [profile-seconds] [note]
 #   loadtest/profile.sh write 800 60 "baseline"
 #
-# Steps: copies async-profiler into the backend container, starts k6 at <rate>,
+# Steps: copies async-profiler into the backend container in the LXD VM, starts k6 at <rate>,
 # waits WARMUP_SECONDS (default 30), samples the JVM for <profile-seconds>, then saves to
 # loadtest/results/profiles/<date>-<test>-<rate>rps/:
 #   flamegraph.html   open in a browser; wider box = more CPU time
@@ -19,6 +19,8 @@ PROFILE_SECONDS=${3:-60}
 NOTE=${4:-}
 WARMUP_SECONDS=${WARMUP_SECONDS:-30}
 CONTAINER=${CONTAINER:-url-shortener-backend}
+VM=${VM:-url-shortener}
+in_vm=(sudo lxc exec "$VM" --)
 AP_VERSION=4.5
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -33,7 +35,8 @@ if [ ! -x "$ap/bin/asprof" ]; then
     tar xz -C "$tools"
 fi
 
-docker cp -q "$ap" "$CONTAINER:/tmp/async-profiler"
+sudo lxc file push -r "$ap" "$VM/tmp/" >/dev/null
+"${in_vm[@]}" docker cp -q "/tmp/$(basename "$ap")" "$CONTAINER:/tmp/async-profiler"
 mkdir -p "$out"
 
 echo "k6: $TEST at $RATE req/s for $((WARMUP_SECONDS + PROFILE_SECONDS + 5))s (profiling after ${WARMUP_SECONDS}s warm-up)"
@@ -46,9 +49,11 @@ sleep "$WARMUP_SECONDS"
 echo "Profiling for ${PROFILE_SECONDS}s ..."
 # itimer: CPU sampling that works inside containers without perf_events permissions.
 # The JVM is PID 1 in the container (ENTRYPOINT java -jar).
-docker exec "$CONTAINER" /tmp/async-profiler/bin/asprof \
+"${in_vm[@]}" docker exec "$CONTAINER" /tmp/async-profiler/bin/asprof \
   -d "$PROFILE_SECONDS" -e itimer -i 1ms -f /tmp/profile.jfr 1 >/dev/null
-docker cp -q "$CONTAINER:/tmp/profile.jfr" "$out/profile.jfr"
+"${in_vm[@]}" docker cp -q "$CONTAINER:/tmp/profile.jfr" /tmp/profile.jfr
+sudo lxc file pull "$VM/tmp/profile.jfr" "$out/profile.jfr"
+sudo chown "$(id -u):$(id -g)" "$out/profile.jfr"
 wait $k6_pid || true
 trap - EXIT
 
