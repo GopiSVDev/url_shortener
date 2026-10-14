@@ -145,7 +145,7 @@ The script runs k6 in steps of increasing rate and reports the highest rate that
    minutes.
 2. **Ramp**: starts at about 90% of the previous result for the same test and grows 1.1× per step (the
    very first run starts at 50 and doubles). Steps are 30 s.
-3. **Refine**: binary search between the last passing and the first failing rate, on a 5 req/s grid.
+3. **Refine**: binary search between the last passing and the first failing rate, on a 10 req/s grid.
    Steps are 30 s, or 1 minute once within 5% of the limit, because a small overload needs time to build
    a visible queue.
 4. **Confirm**: holds the best rate for 2 minutes. If it fails, the rate is lowered by 5% and confirmed

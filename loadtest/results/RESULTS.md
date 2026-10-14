@@ -13,6 +13,7 @@ run on the host, on other cores.
 | Date | Stable req/s | vs previous | p90 ms | p95 ms | p99 ms | Errors | Target | CPU backend | CPU db | Note |
 |---|---:|---:|---:|---:|---:|---:|---|---|---|---|
 | 2026-10-14 | 795 | - | 66.3 | 167.2 | 399.9 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.497 (1) | 0.304 (1) | baseline |
+| 2026-10-14 | 830 | +4.4% | 31.9 | 78.9 | 256.3 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.499 (1) | 0.315 (1) | disable security observations |
 
 ## read: `GET /{code}` (redirect, 1M links, Zipf traffic)
 

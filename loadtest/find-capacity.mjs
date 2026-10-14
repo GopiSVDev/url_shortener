@@ -47,7 +47,7 @@ const config = {
   growth: Number(env('GROWTH', 2)),
   maxRate: Number(env('MAX_RATE', 20000)),
   precision: Number(env('PRECISION', 0.05)),
-  resolution: Number(env('RESOLUTION', 5)),
+  resolution: Number(env('RESOLUTION', 10)),
   stepDuration: env('STEP_DURATION', '30s'),
   fineStepDuration: env('FINE_STEP_DURATION', '1m'),
   searchBudgetMinutes: Number(env('SEARCH_BUDGET_MINUTES', 20)),
@@ -314,7 +314,7 @@ function warmUp() {
 const target =
   `p90 <= ${config.p90Ms} ms, p95 <= ${config.p95Ms} ms, p99 <= ${config.p99Ms} ms, ` +
   `errors < ${pct(config.maxErrorRate)}`;
-// Rates are kept on a grid of RESOLUTION req/s (e.g. 805, 810).
+// Rates are kept on a grid of RESOLUTION req/s (e.g. 800, 810).
 const gridDown = (r) => Math.floor(r / config.resolution) * config.resolution;
 const gridUp = (r) => Math.ceil(r / config.resolution) * config.resolution;
 
