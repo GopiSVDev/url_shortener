@@ -9,7 +9,7 @@
 //   1. warm-up   not judged. Gentle start (50, 100, 200 req/s for 30s each, so a cold JVM isn't
 //                flooded), then 1-minute steps at WARMUP_RATE until the backend's CPU cost per
 //                request changes less than WARMUP_TOLERANCE (5%) between two steps, i.e. the JIT
-//                has finished optimizing. After a restart on 0.6 CPU this takes several minutes;
+//                has finished optimizing. After a restart this takes several minutes;
 //                on an already-warm backend it stops after two steps.
 //   2. ramp      raise the rate step by step until a step misses the target. If this test has a
 //                previous result, it starts at ~90% of it and grows 1.1x per step; otherwise it
@@ -24,9 +24,12 @@
 // A step passes when: p90 <= P90_MS, p95 <= P95_MS, p99 <= P99_MS, error rate < MAX_ERROR_RATE and k6 dropped < 1% of iterations.
 // After each step the numbers for that step are pulled from Prometheus and saved with it:
 // where the time went per request (queue, DB connection wait, DB work, Java code) and saturation
-// (threads, pool, GC, CPU, throttling, memory). A container at its CPU limit = hardware bound;
+// (threads, pool, GC, CPU, memory). The VM at its CPU limit = hardware bound;
 // latency rising with CPU to spare = software bound.
 // Results go to loadtest/results/ (RESULTS.md history table + one .md/.json per run).
+//
+// The app runs in the LXD VM (VM name, BASE_URL); k6 and Prometheus run on the laptop.
+// Backend CPU comes from the JVM, VM CPU and memory from LXD's metrics endpoint.
 
 import { spawnSync, execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync, rmSync } from 'node:fs';
@@ -56,7 +59,8 @@ const config = {
   warmupTolerance: Number(env('WARMUP_TOLERANCE', 0.05)),
   warmupMaxSteps: Number(env('WARMUP_MAX_STEPS', 8)),
   cooldownSeconds: Number(env('COOLDOWN_SECONDS', 10)),
-  baseUrl: env('BASE_URL', 'http://localhost:4000'),
+  baseUrl: env('BASE_URL', 'http://10.24.21.249:4000'),
+  vm: env('VM', 'url-shortener'),
   prometheusUrl: env('PROMETHEUS_URL', 'http://localhost:9090/api/v1/write'),
   prometheusQueryUrl: env('PROMETHEUS_QUERY_URL', 'http://localhost:9090/api/v1/query'),
 };
@@ -204,7 +208,7 @@ function collectMetrics(duration, endSeconds, k6AvgMs) {
   const db = 'datname!~"postgres|template.*"';
   const requests = `sum(increase(http_server_requests_seconds_count{${app}}[${w}]))`;
   const perRequestMs = (sumMetric) => `1000 * sum(increase(${sumMetric}[${w}])) / ${requests}`;
-  const container = (name) => `name="url-shortener-${name}"`;
+  const vm = `name="${config.vm}"`;
   const mb = 1024 * 1024;
   const queries = {
     serverAvgMs: perRequestMs(`http_server_requests_seconds_sum{${app}}`),
@@ -220,12 +224,10 @@ function collectMetrics(duration, endSeconds, k6AvgMs) {
     poolSize: 'max(hikaricp_connections_max)',
     gcPausePct: `100 * sum(rate(jvm_gc_pause_seconds_sum[${w}]))`,
     heapMaxMb: `max_over_time(sum(jvm_memory_used_bytes{area="heap"})[${w}:5s]) / ${mb}`,
-    cpuBackend: `sum(rate(container_cpu_usage_seconds_total{${container('backend')}}[${w}]))`,
-    cpuDb: `sum(rate(container_cpu_usage_seconds_total{${container('db')}}[${w}]))`,
-    throttledBackendPct: `100 * sum(increase(container_cpu_cfs_throttled_periods_total{${container('backend')}}[${w}])) / sum(increase(container_cpu_cfs_periods_total{${container('backend')}}[${w}]))`,
-    throttledDbPct: `100 * sum(increase(container_cpu_cfs_throttled_periods_total{${container('db')}}[${w}])) / sum(increase(container_cpu_cfs_periods_total{${container('db')}}[${w}]))`,
-    memBackendMb: `max_over_time(sum(container_memory_working_set_bytes{${container('backend')}})[${w}:5s]) / ${mb}`,
-    memDbMb: `max_over_time(sum(container_memory_working_set_bytes{${container('db')}})[${w}:5s]) / ${mb}`,
+    // process_cpu_usage is the JVM's share of all CPUs; times the CPU count = cores used
+    cpuBackend: `avg_over_time(max(process_cpu_usage)[${w}:5s]) * max(system_cpu_count)`,
+    cpuVm: `sum(rate(lxd_cpu_seconds_total{${vm},mode!~"idle|iowait"}[${w}]))`,
+    memVmMb: `max_over_time((sum(lxd_memory_MemTotal_bytes{${vm}}) - sum(lxd_memory_MemAvailable_bytes{${vm}}))[${w}:5s]) / ${mb}`,
     dbCacheHitPct: `100 * sum(increase(pg_stat_database_blks_hit{${db}}[${w}])) / (sum(increase(pg_stat_database_blks_hit{${db}}[${w}])) + sum(increase(pg_stat_database_blks_read{${db}}[${w}])))`,
   };
 
@@ -238,6 +240,8 @@ function collectMetrics(duration, endSeconds, k6AvgMs) {
   const diff = (a, ...rest) => (a == null || rest.some((x) => x == null) ? null : round(Math.max(a - rest.reduce((x, y) => x + y, 0), 0)));
   m.queueMs = diff(k6AvgMs, m.serverAvgMs);
   m.javaMs = diff(m.serverAvgMs, m.connWaitMs, m.connHoldMs);
+  // Everything in the VM except the JVM: mostly Postgres, plus Docker and the OS
+  m.cpuDb = m.cpuVm == null || m.cpuBackend == null ? null : Math.max(Math.round((m.cpuVm - m.cpuBackend) * 1000) / 1000, 0);
 
   // Each SQL statement: how often it runs per request and its average time inside Postgres.
   // Counters are per queryid; the SQL text comes from the exporter's pg_stat_statements_query_id
@@ -270,11 +274,13 @@ function collectMetrics(duration, endSeconds, k6AvgMs) {
   return m;
 }
 
-function containerLimits(name) {
-  const out = sh(`docker inspect ${name} --format '{{.HostConfig.NanoCpus}} {{.HostConfig.Memory}}'`);
-  if (!out) return null;
-  const [nanoCpus, memory] = out.split(' ').map(Number);
-  return { cpus: nanoCpus / 1e9, memoryMb: memory / 1024 / 1024 };
+// The VM's CPUs (as the JVM sees them) and memory (as LXD sees it)
+function vmLimits() {
+  const now = Date.now() / 1000;
+  const cpus = promQuery('max(system_cpu_count)', now);
+  const memory = promQuery(`sum(lxd_memory_MemTotal_bytes{name="${config.vm}"})`, now);
+  if (cpus == null) return null;
+  return { cpus, memoryMb: memory == null ? '?' : Math.round(memory / 1024 / 1024) };
 }
 
 // --- search ---
@@ -360,10 +366,7 @@ const result = {
   finishedAt: new Date().toISOString(),
   commit: sh('git rev-parse --short HEAD'),
   uncommittedChanges: sh('git status --porcelain -- backend docker-compose.yml') !== '',
-  limits: {
-    backend: containerLimits('url-shortener-backend'),
-    db: containerLimits('url-shortener-db'),
-  },
+  limits: { vm: vmLimits() },
   config,
   final,
   steps,
@@ -387,7 +390,7 @@ const timeRows = steps.map((s) => {
 });
 const saturationRows = steps.map((s) => {
   const t = s.metrics;
-  return `| ${s.phase} | ${s.rate} | ${verdict(s)} | ${ofLimit(t.tomcatBusyMax, t.tomcatThreads)} | ${ofLimit(t.poolActiveMax, t.poolSize)} | ${cell(t.poolPendingMax)} | ${cell(t.gcPausePct)} | ${cell(t.cpuBackend)} | ${cell(t.throttledBackendPct)} | ${cell(t.memBackendMb)} | ${cell(t.heapMaxMb)} | ${cell(t.cpuDb)} | ${cell(t.throttledDbPct)} | ${cell(t.memDbMb)} | ${cell(t.dbCacheHitPct)} |`;
+  return `| ${s.phase} | ${s.rate} | ${verdict(s)} | ${ofLimit(t.tomcatBusyMax, t.tomcatThreads)} | ${ofLimit(t.poolActiveMax, t.poolSize)} | ${cell(t.poolPendingMax)} | ${cell(t.gcPausePct)} | ${cell(t.cpuVm)} | ${cell(t.cpuBackend)} | ${cell(t.cpuDb)} | ${cell(t.memVmMb)} | ${cell(t.heapMaxMb)} | ${cell(t.dbCacheHitPct)} |`;
 });
 const stepRows = steps.map(
   (s) =>
@@ -402,7 +405,7 @@ writeFileSync(
     `- Date: ${startedAt.toISOString()}`,
     `- Commit: ${commitLabel}`,
     `- Target: ${target}`,
-    `- Backend: ${limit(result.limits.backend)}, DB: ${limit(result.limits.db)}`,
+    `- VM: ${limit(result.limits.vm)} (backend and Postgres share it)`,
     '',
     '## Latency (k6)',
     '',
@@ -433,9 +436,10 @@ writeFileSync(
     '## Saturation',
     '',
     'Max values over the step, except CPU (average cores), GC (% of time paused) and cache hit (%).',
+    '"DB + OS CPU" is VM CPU minus backend CPU: Postgres plus Docker and the OS.',
     '',
-    '| Phase | req/s | Result | Tomcat threads busy / max | DB pool active / size | Pool waiting | GC pause % | Backend CPU | Backend throttled % | Backend mem MB | Heap MB | DB CPU | DB throttled % | DB mem MB | DB cache hit % |',
-    '|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
+    '| Phase | req/s | Result | Tomcat threads busy / max | DB pool active / size | Pool waiting | GC pause % | VM CPU | Backend CPU | DB + OS CPU | VM mem MB | Heap MB | DB cache hit % |',
+    '|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
     ...saturationRows,
     '',
   ].join('\n'),
@@ -454,7 +458,7 @@ const changeCell = change == null ? '-' : `${change >= 0 ? '+' : ''}${(change * 
 const row =
   `| ${startedAt.toISOString().slice(0, 10)} | ${final ? final.rate : 'none'} | ${changeCell} | ` +
   `${final?.p90Ms ?? '-'} | ${final?.p95Ms ?? '-'} | ${final?.p99Ms ?? '-'} | ${final ? pct(final.errorRate) : '-'} | ` +
-  `p90/p95/p99 <= ${config.p90Ms}/${config.p95Ms}/${config.p99Ms} ms | ${cpuCell(final?.metrics.cpuBackend, result.limits.backend)} | ${cpuCell(final?.metrics.cpuDb, result.limits.db)} | ` +
+  `p90/p95/p99 <= ${config.p90Ms}/${config.p95Ms}/${config.p99Ms} ms | ${cpuCell(final?.metrics.cpuBackend, result.limits.vm)} | ${cpuCell(final?.metrics.cpuDb, result.limits.vm)} | ` +
   `${note} |`;
 
 const history = existsSync(historyFile)

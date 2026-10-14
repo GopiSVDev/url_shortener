@@ -24,7 +24,7 @@ Built with Spring Boot 4 (Java 25), PostgreSQL and React Router, and load tested
 | Frontend | React 19, React Router 8 (server-side rendering), Mantine, Zod |
 | Database | PostgreSQL 16 |
 | Testing | JUnit 5, Testcontainers, MockMvc, k6, async-profiler |
-| Infrastructure | Docker Compose, Prometheus, cAdvisor (load testing only) |
+| Infrastructure | Docker Compose, LXD VM and Prometheus (load testing only) |
 
 ## Architecture
 
