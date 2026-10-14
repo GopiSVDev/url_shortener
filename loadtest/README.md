@@ -103,8 +103,8 @@ async-profiler is downloaded automatically by `profile.sh` into `loadtest/.tools
 
 ### 1. Prepare
 
-1. Make one change per run and commit it first. Each run file records the commit; `+changes` means
-   uncommitted changes were present.
+1. Make one change per run. It is tested uncommitted and committed after its runs together with its
+   results, so the run file records the previous commit with `+changes`.
 2. Deploy the backend if its code or configuration changed. The image is built on the laptop (a build
    on the VM's 1 CPU is slow) and loaded into the VM, together with the project files:
    ```bash

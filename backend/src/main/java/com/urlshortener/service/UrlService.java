@@ -9,15 +9,18 @@ import com.urlshortener.repository.UserRepository;
 import com.urlshortener.util.Base62Encoder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
+import org.springframework.jdbc.core.SqlParameterValue;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +31,12 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class UrlService {
+    private static final String INSERT_SHORT_URL = """
+            insert into short_urls (original_url, short_code, expiration_date, created_at, updated_at, user_id)
+            values (?, ?, ?, ?, ?, ?)
+            returning id
+            """;
+
     private static final String COUNT_CLICKS_PER_LINK = """
             select st.short_url_id, st.click_count from link_stats st
             join short_urls s on s.id = st.short_url_id
@@ -44,7 +53,6 @@ public class UrlService {
     @Value("${app.base-url}")
     private String baseUrl;
 
-    @Transactional
     public ShortUrlResponse createShortUrl(ShortUrlRequest request, String username) {
         if (!isValidUrl(request.getOriginalUrl())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid URL format");
@@ -57,27 +65,51 @@ public class UrlService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
         }
 
-        String shortCode = request.getAlias();
+        Long ownerId = owner == null ? null : owner.getId();
 
-        if (shortCode != null) {
-            if (RESERVED_ALIASES.contains(shortCode.toLowerCase(Locale.ROOT))
-                    || shortUrlRepository.existsByShortCode(shortCode)) {
+        String alias = request.getAlias();
+
+        if (alias != null) {
+            if (RESERVED_ALIASES.contains(alias.toLowerCase(Locale.ROOT))) {
                 throw aliasTaken();
             }
-        } else {
-            do {
-                shortCode = base62Encoder.generateRandomCode(7);
-            } while (shortUrlRepository.existsByShortCode(shortCode));
+
+            try {
+                return insert(request, alias, ownerId);
+            } catch (DuplicateKeyException e) {
+                throw aliasTaken();
+            }
         }
 
-        ShortUrl shortUrl = ShortUrl.builder()
-                .originalUrl(request.getOriginalUrl())
-                .shortCode(shortCode)
-                .expirationDate(request.getExpirationDate())
-                .createdBy(owner)
-                .build();
+        // No exists check first: the unique index on short_code rejects a collision, which is rare
+        for (int i = 0; i < 5; i++) {
+            try {
+                return insert(request, base62Encoder.generateRandomCode(7), ownerId);
+            } catch (DuplicateKeyException e) {
+                // short code collision, try another
+            }
+        }
 
-        return mapToResponse(shortUrlRepository.save(shortUrl));
+        throw new IllegalStateException("Could not generate a unique short code");
+    }
+
+    // One JDBC insert in autocommit: a single round trip, no BEGIN/COMMIT and no exists check
+    private ShortUrlResponse insert(ShortUrlRequest request, String shortCode, Long ownerId) {
+        LocalDateTime now = LocalDateTime.now();
+
+        Long id = jdbcTemplate.queryForObject(INSERT_SHORT_URL,
+                Long.class, request.getOriginalUrl(), shortCode,
+                new SqlParameterValue(Types.TIMESTAMP, request.getExpirationDate()), now, now,
+                new SqlParameterValue(Types.BIGINT, ownerId));
+
+        return ShortUrlResponse.builder()
+                .id(id)
+                .shortCode(shortCode)
+                .shortUrl(baseUrl + "/" + shortCode)
+                .originalUrl(request.getOriginalUrl())
+                .expirationDate(request.getExpirationDate())
+                .createdAt(now)
+                .build();
     }
 
     private static ResponseStatusException aliasTaken() {
