@@ -102,8 +102,13 @@ public class ClickRecorder {
             log.warn("Click queue full: dropped {} clicks", droppedNow);
         }
 
+        // Only the clicks queued when the flush started: under steady traffic the queue never empties, and
+        // draining until it did kept the flush running nonstop with small batches (~50 clicks at 1700 req/s),
+        // each with its own transaction and link_stats upserts. Later clicks wait for the next flush.
+        int pending = queue.size();
         List<PendingClick> batch = new ArrayList<>(BATCH_SIZE);
-        while (queue.drainTo(batch, BATCH_SIZE) > 0) {
+        while (pending > 0 && queue.drainTo(batch, Math.min(BATCH_SIZE, pending)) > 0) {
+            pending -= batch.size();
             insert(batch);
             batch.clear();
         }
