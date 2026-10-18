@@ -178,6 +178,19 @@ class UrlControllerIT {
     }
 
     @Test
+    void redirect_aliasCreatedAfterA404_redirects() throws Exception {
+        String alias = "a" + UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        mvc.perform(get("/" + alias)).andExpect(status().isNotFound()); // cached as unknown
+
+        create(null, "{\"originalUrl\":\"https://example.com/late\",\"alias\":\"%s\"}".formatted(alias))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/" + alias))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "https://example.com/late"));
+    }
+
+    @Test
     void redirect_expiredLink_returns410() throws Exception {
         String code = "x" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         shortUrlRepository.save(ShortUrl.builder()
