@@ -6,15 +6,20 @@ recorded, so the effect of each optimization is visible in [results/RESULTS.md](
 
 ## Contents
 
-- [Test environment](#test-environment)
-- [Pass criteria](#pass-criteria)
-- [Scenarios](#scenarios)
-- [Prerequisites](#prerequisites)
-- [Running a test](#running-a-test)
-- [Profiling](#profiling)
-- [Diagnosing where the time goes](#diagnosing-where-the-time-goes)
-- [Reading the results](#reading-the-results)
-- [Files](#files)
+- [Load testing](#load-testing)
+  - [Contents](#contents)
+  - [Test environment](#test-environment)
+  - [Pass criteria](#pass-criteria)
+  - [Scenarios](#scenarios)
+  - [Prerequisites](#prerequisites)
+  - [Running a test](#running-a-test)
+    - [1. Prepare](#1-prepare)
+    - [2. Find the capacity](#2-find-the-capacity)
+    - [Single run at a fixed rate](#single-run-at-a-fixed-rate)
+  - [Profiling](#profiling)
+  - [Diagnosing where the time goes](#diagnosing-where-the-time-goes)
+  - [Reading the results](#reading-the-results)
+  - [Files](#files)
 
 ## Test environment
 
@@ -24,12 +29,12 @@ without container limits, so they share the VM like they would on a small cloud 
 
 Everything else runs on the laptop, outside the budget:
 
-| Tool | Where | Measures |
-|---|---|---|
-| k6 | laptop | Sends the load to `http://10.24.21.249:4000` |
-| Prometheus | laptop (Docker, host network) | Scrapes the backend in the VM, postgres-exporter and LXD |
-| postgres-exporter | laptop (Docker, host network) | `pg_stat_statements` of the VM's Postgres |
-| LXD metrics endpoint | laptop (LXD itself) | VM CPU and memory, from outside the VM |
+| Tool                 | Where                         | Measures                                                 |
+| -------------------- | ----------------------------- | -------------------------------------------------------- |
+| k6                   | laptop                        | Sends the load to `http://10.24.21.249:4000`             |
+| Prometheus           | laptop (Docker, host network) | Scrapes the backend in the VM, postgres-exporter and LXD |
+| postgres-exporter    | laptop (Docker, host network) | `pg_stat_statements` of the VM's Postgres                |
+| LXD metrics endpoint | laptop (LXD itself)           | VM CPU and memory, from outside the VM                   |
 
 The VM's vCPU is pinned to host CPU 10 (core 5, sibling of CPU 11) and k6 runs on CPUs 0-9 with
 `taskset`, so the load generator never shares a core with the app. Without pinning, k6 competed with the
@@ -50,12 +55,12 @@ are not directly comparable with VM results.
 
 A rate passes only if all of the following hold during the step:
 
-| Metric | Limit |
-|---|---|
-| p90 latency | ≤ 150 ms |
-| p95 latency | ≤ 200 ms |
-| p99 latency | ≤ 500 ms |
-| Error rate | < 1% |
+| Metric             | Limit                                                                      |
+| ------------------ | -------------------------------------------------------------------------- |
+| p90 latency        | ≤ 150 ms                                                                   |
+| p95 latency        | ≤ 200 ms                                                                   |
+| p99 latency        | ≤ 500 ms                                                                   |
+| Error rate         | < 1%                                                                       |
 | Dropped iterations | < 1% (k6 could not start requests on time because the backend fell behind) |
 
 The limits can be overridden with environment variables (`P90_MS`, `P95_MS`, `P99_MS`, ...), listed at
@@ -63,10 +68,10 @@ the top of `find-capacity.mjs`. A run with different limits is not comparable wi
 
 ## Scenarios
 
-| Test | Script | Requests | Data |
-|---|---|---|---|
-| `write` | `write.js` | Anonymous `POST /api/urls` | Starts from empty tables |
-| `read` | `read.js` | `GET /{code}` redirects: 97% live links, 2% unknown codes (404), 1% expired links (410) | 1M seeded links |
+| Test    | Script     | Requests                                                                                | Data                     |
+| ------- | ---------- | --------------------------------------------------------------------------------------- | ------------------------ |
+| `write` | `write.js` | Anonymous `POST /api/urls`                                                              | Starts from empty tables |
+| `read`  | `read.js`  | `GET /{code}` redirects: 97% live links, 2% unknown codes (404), 1% expired links (410) | 1M seeded links          |
 
 Live links in the read test follow a Zipf distribution (s = 1): the top 1,000 links get about 50% of the
 requests and the top 10,000 about 67%, like real shortener traffic where a few links are popular.
@@ -86,6 +91,18 @@ as a bot, so these clicks are stored (and cost the same to write) but are not co
   ```
   With ufw on the host, the VM needs `sudo ufw allow in on lxdbr0` and
   `sudo ufw route allow in|out on lxdbr0` to get an IP and reach the internet.
+- Enough space in LXD's storage pool. The VM's 100 GiB disk is thin: real space comes from the pool, which
+  is a small loop file by default (4.4 GiB here) and filled up after a few days of runs, freezing the VM
+  and corrupting a half-loaded image. It was grown to 10 GiB (needs `zfsutils-linux` on the host):
+  ```bash
+  sudo truncate -s 10G /var/snap/lxd/common/lxd/disks/default.img
+  sudo zpool set autoexpand=on default
+  sudo zpool online -e default /var/snap/lxd/common/lxd/disks/default.img
+  sudo lxc storage info default    # check usage now and then
+  ```
+  Space freed inside the VM only returns to the pool after a trim, and every `docker load` leaves the
+  previous backend image behind, so clean up after a batch of runs:
+  `sudo lxc exec url-shortener -- sh -c 'docker image prune -f && fstrim -av'`
 - LXD metrics for Prometheus (once):
   ```bash
   sudo lxc config set core.metrics_address 127.0.0.1:8444
@@ -184,12 +201,12 @@ loadtest/profile.sh write 800 60 "baseline"
 
 Each profile is saved in `results/profiles/<date>-<test>-<rate>rps/`:
 
-| File | Contents |
-|---|---|
-| `flamegraph.html` | Interactive flame graph; open in a browser |
-| `top.txt` | Total samples, CPU by layer, socket I/O share, top methods by self time |
-| `collapsed.txt` | One line per stack with its sample count, for custom analysis |
-| `profile.jfr` | Raw recording |
+| File              | Contents                                                                |
+| ----------------- | ----------------------------------------------------------------------- |
+| `flamegraph.html` | Interactive flame graph; open in a browser                              |
+| `top.txt`         | Total samples, CPU by layer, socket I/O share, top methods by self time |
+| `collapsed.txt`   | One line per stack with its sample count, for custom analysis           |
+| `profile.jfr`     | Raw recording                                                           |
 
 To compare two recordings as a differential flame graph:
 
@@ -208,11 +225,11 @@ loadtest/diagnose.sh <test> <rate> <seconds> "note"
 loadtest/diagnose.sh write 1300 180 "where does DB hold time go"
 ```
 
-| Side | Source | Shows |
-|---|---|---|
-| Postgres | `pg_stat_activity` sampled every 10 ms, `pg_stat_wal` with `track_wal_io_timing` | What app connections do: run SQL, wait on WAL or locks, or sit idle waiting for the JVM; WAL syncs per commit and ms per sync |
-| VM kernel | `/proc/stat`, `/proc/pressure/{cpu,io}`, `vmstat` | CPU split incl. iowait and steal; time tasks waited for the CPU or for I/O; run queue |
-| JVM | async-profiler wall-clock profile | What the Tomcat request threads wait on (pool, Postgres reply, CPU) |
+| Side      | Source                                                                           | Shows                                                                                                                                                      |
+| --------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Postgres  | `pg_stat_activity` sampled every 10 ms, `pg_stat_wal` with `track_wal_io_timing` | What app connections do: run SQL, wait on WAL or locks, or sit idle waiting for the JVM; WAL syncs per commit and ms per sync                              |
+| VM kernel | `/proc/stat`, `/proc/pressure/{cpu,io}`, `vmstat`, `/proc/<pid>/stat`            | CPU split incl. iowait and steal; time tasks waited for the CPU or for I/O; run queue; CPU per process name (java, postgres, docker-proxy, kernel threads) |
+| JVM       | async-profiler wall-clock profile                                                | What the Tomcat request threads wait on (pool, Postgres reply, CPU)                                                                                        |
 
 It runs k6 with `taskset` itself, turns `track_wal_io_timing` on only for the run, and saves `summary.md`
 plus the raw files in `results/diagnose/<date>-<test>-<rate>rps/`. The sampler and the wall profiler
@@ -234,24 +251,24 @@ capacity runs for large changes and final numbers.
 
 **Bottlenecks** show up in the run file:
 
-- *Hardware bound*: the VM sits at its CPU limit (VM CPU near 1) while the time goes into real work.
-- *Software bound*: latency breaks the target with CPU to spare. The time breakdown shows where requests
+- _Hardware bound_: the VM sits at its CPU limit (VM CPU near 1) while the time goes into real work.
+- _Software bound_: latency breaks the target with CPU to spare. The time breakdown shows where requests
   wait (queue, connection pool) and the saturation table shows which resource is full.
 - The overloaded steps show the raw maximum throughput at 100% CPU. The stable rate is usually 90–93% of
   it; going beyond that gap requires making each request cheaper.
 
 ## Files
 
-| Path | Description |
-|---|---|
-| `write.js` | k6 write scenario |
-| `read.js` | k6 read scenario |
-| `seed-read.sh`, `seed-read.sql` | Seed the read dataset and export its codes to `data/` |
-| `find-capacity.mjs` | Capacity search; writes `results/RESULTS.md` and `results/runs/` |
-| `profile.sh` | CPU profiling with async-profiler; writes `results/profiles/` |
-| `diagnose.sh` | Time breakdown from Postgres, the VM kernel and the JVM; writes `results/diagnose/` |
-| `results/RESULTS.md` | History of all capacity runs, one table per test (in git) |
-| `results/runs/` | Per run: every step with latency, time breakdown and saturation (git-ignored) |
-| `results/profiles/` | Per profile: flame graph and summaries (git-ignored) |
-| `data/` | Codes of the seeded links used by `read.js` (git-ignored) |
-| `../monitoring/` | Prometheus scrape config (VM backend, exporter, LXD) and `pg_stat_statements` setup |
+| Path                            | Description                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------------- |
+| `write.js`                      | k6 write scenario                                                                   |
+| `read.js`                       | k6 read scenario                                                                    |
+| `seed-read.sh`, `seed-read.sql` | Seed the read dataset and export its codes to `data/`                               |
+| `find-capacity.mjs`             | Capacity search; writes `results/RESULTS.md` and `results/runs/`                    |
+| `profile.sh`                    | CPU profiling with async-profiler; writes `results/profiles/`                       |
+| `diagnose.sh`                   | Time breakdown from Postgres, the VM kernel and the JVM; writes `results/diagnose/` |
+| `results/RESULTS.md`            | History of all capacity runs, one table per test (in git)                           |
+| `results/runs/`                 | Per run: every step with latency, time breakdown and saturation (git-ignored)       |
+| `results/profiles/`             | Per profile: flame graph and summaries (git-ignored)                                |
+| `data/`                         | Codes of the seeded links used by `read.js` (git-ignored)                           |
+| `../monitoring/`                | Prometheus scrape config (VM backend, exporter, LXD) and `pg_stat_statements` setup |

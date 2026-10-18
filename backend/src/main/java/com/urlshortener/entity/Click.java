@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
 
@@ -21,11 +19,10 @@ public class Click {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Deleting a link deletes its clicks in the database (ON DELETE CASCADE)
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "short_url_id", nullable = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    private ShortUrl shortUrl;
+    // No foreign key: Postgres checked it on every click insert (~0.06 ms per redirect). Clicks of a deleted
+    // link are deleted by UrlService.deleteUrl; inserts skip clicks whose link no longer exists.
+    @Column(name = "short_url_id", nullable = false)
+    private Long shortUrlId;
 
     @Column(name = "clicked_at", nullable = false)
     private LocalDateTime clickedAt;

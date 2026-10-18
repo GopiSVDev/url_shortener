@@ -1,5 +1,7 @@
 package com.urlshortener.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.urlshortener.dto.ShortUrlRequest;
 import com.urlshortener.dto.ShortUrlResponse;
 import com.urlshortener.entity.ShortUrl;
@@ -16,6 +18,8 @@ import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.SqlParameterValue;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
@@ -26,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -35,6 +40,14 @@ public class UrlService {
             insert into short_urls (original_url, short_code, expiration_date, created_at, updated_at, user_id)
             values (?, ?, ?, ?, ?, ?)
             returning id
+            """;
+
+    private static final String FIND_REDIRECT_TARGET = """
+            select id, original_url, expiration_date from short_urls where short_code = ?
+            """;
+
+    private static final String DELETE_CLICKS = """
+            delete from clicks where short_url_id = ?
             """;
 
     private static final String COUNT_CLICKS_PER_LINK = """
@@ -49,6 +62,13 @@ public class UrlService {
     private final UserRepository userRepository;
     private final Base62Encoder base62Encoder;
     private final JdbcTemplate jdbcTemplate;
+
+    // Redirect lookups by short code, including codes that do not exist (empty), so repeated requests for
+    // unknown codes don't reach the database either. Entries are evicted when a link is created, updated or
+    // deleted; the expiry date is cached with the link and checked on every hit.
+    private final Cache<String, Optional<RedirectLookup>> redirectCache = Caffeine.newBuilder()
+            .maximumSize(100_000)
+            .build();
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -102,6 +122,9 @@ public class UrlService {
                 new SqlParameterValue(Types.TIMESTAMP, request.getExpirationDate()), now, now,
                 new SqlParameterValue(Types.BIGINT, ownerId));
 
+        // The code may be cached as unknown (e.g. someone tried the alias before it existed)
+        redirectCache.invalidate(shortCode);
+
         return ShortUrlResponse.builder()
                 .id(id)
                 .shortCode(shortCode)
@@ -117,16 +140,38 @@ public class UrlService {
     }
 
     // Returns the link to redirect to: its id (for click recording) and its original URL
-    @Transactional(readOnly = true)
     public RedirectTarget getRedirectTarget(String shortCode) {
-        ShortUrl url = shortUrlRepository.findByShortCode(shortCode)
+        RedirectLookup url = redirectCache.get(shortCode, this::findRedirectTarget)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found"));
 
-        if (url.getExpirationDate() != null && url.getExpirationDate().isBefore(LocalDateTime.now())) {
+        if (url.expirationDate() != null && url.expirationDate().isBefore(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.GONE, "Short URL has expired");
         }
 
-        return new RedirectTarget(url.getId(), url.getOriginalUrl());
+        return new RedirectTarget(url.id(), url.originalUrl());
+    }
+
+    // Cache miss: one JDBC select in autocommit (a single round trip, no BEGIN/COMMIT, no entity loading)
+    private Optional<RedirectLookup> findRedirectTarget(String shortCode) {
+        List<RedirectLookup> rows = jdbcTemplate.query(FIND_REDIRECT_TARGET,
+                (rs, rowNum) -> new RedirectLookup(rs.getLong(1), rs.getString(2),
+                        rs.getObject(3, LocalDateTime.class)),
+                shortCode);
+
+        return rows.stream().findFirst();
+    }
+
+    private record RedirectLookup(long id, String originalUrl, LocalDateTime expirationDate) {
+    }
+
+    // After the transaction commits, so a concurrent lookup can't cache the old row again
+    private void evictAfterCommit(String shortCode) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                redirectCache.invalidate(shortCode);
+            }
+        });
     }
 
     public record RedirectTarget(long id, String originalUrl) {
@@ -162,6 +207,7 @@ public class UrlService {
 
         existing.setOriginalUrl(request.getOriginalUrl());
         existing.setExpirationDate(request.getExpirationDate());
+        evictAfterCommit(shortCode);
 
         return mapToResponse(shortUrlRepository.save(existing));
     }
@@ -182,7 +228,11 @@ public class UrlService {
 
     @Transactional
     public void deleteUrl(String shortCode, String username) {
-        shortUrlRepository.delete(findOwned(shortCode, username));
+        ShortUrl url = findOwned(shortCode, username);
+        // clicks has no foreign key (see Click), so its rows are not removed by a cascade
+        jdbcTemplate.update(DELETE_CLICKS, url.getId());
+        shortUrlRepository.delete(url);
+        evictAfterCommit(shortCode);
     }
 
     private boolean isValidUrl(String url) {

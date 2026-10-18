@@ -8,19 +8,89 @@ run on the host, on other cores.
 
 ## write: `POST /api/urls` (anonymous create)
 
+### Summary
+
+Write capacity rose from **795 to 1510 req/s (+90%)** under the same latency target. At 1510 req/s the
+2-minute confirm ran at p90/p95/p99 18/42/159 ms with no errors.
+
+| Step                                 | req/s | Change                               | Why it helped                                                                                                   |
+| ------------------------------------ | ----: | ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Baseline                             |   795 |                                      | Exists check + JPA save inside a transaction: 3 statements and 2 round trips per create                         |
+| Disable Spring Security observations |   830 | +4% (profile: -7% CPU per request)   | Security observations wrapped every filter in timing and tracing objects                                        |
+| One JDBC insert in autocommit        |  1190 | +43% (profile: -22% CPU per request) | One statement and one round trip; a short code collision is caught by the unique index instead of checked first |
+| `synchronous_commit=off`             |  1510 | +27%                                 | Commits no longer wait ~1-2 ms for the WAL to be synced to disk                                                 |
+
+Trade-offs:
+
+- `synchronous_commit=off`: a crash can lose the last ~0.6 s of commits (never corrupts data). Acceptable
+  for link creation; the client can create the link again.
+- Short codes stay random and unguessable; a collision (rare with 7 base62 characters) is retried with a new
+  code.
+
+Where the CPU goes at the limit: the single vCPU is saturated (VM CPU 0.9-1.0). The backend uses ~60% of it
+and Postgres ~20%, and about a third of the CPU is kernel work (TCP stack, scheduling) done on their behalf.
+Per create, the JVM spends ~32% in Spring MVC (arguments, JSON, validation, response), ~25% in Tomcat, ~12% in
+the insert and ~9% in the security chain.
+
+Rejected (CPU compared at 1300 req/s with `diagnose.sh`, no code kept):
+
+- Tomcat 50 threads instead of 200: no gain (1140 req/s, row below).
+- Host networking instead of the Docker bridge: packet handling fell from 13.6% to 7.8% of the CPU, but idle
+  CPU did not change (17.2% vs 16.6%).
+- Virtual threads: ~9 points less CPU between stalls, but with one carrier thread per CPU a pinned carrier
+  stalled every request for 13-24 s; with 4 carriers the stalls and the saving both disappeared (p95 33 vs 187 ms).
+- Batching inserts across requests: with async commit an insert takes ~0.1 ms, so batches averaged 1.3 rows,
+  and handing each request to a writer thread cost more CPU than it saved (idle 17.2% vs 4.7%).
+
 ### Runs
 
-| Date | Stable req/s | vs previous | p90 ms | p95 ms | p99 ms | Errors | Target | CPU backend | CPU db | Note |
-|---|---:|---:|---:|---:|---:|---:|---|---|---|---|
-| 2026-10-14 | 795 | - | 66.3 | 167.2 | 399.9 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.497 (1) | 0.304 (1) | baseline |
-| 2026-10-14 | 830 | +4.4% | 31.9 | 78.9 | 256.3 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.499 (1) | 0.315 (1) | disable security observations |
-| 2026-10-14 | 1190 | +43.4% | 8.7 | 18.9 | 110.3 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.488 (1) | 0.25 (1) | JdbcTemplate autocommit insert |
-| 2026-10-14 | 1140 | -4.2% | 6.8 | 13.5 | 102 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.48 (1) | 0.221 (1) | tomcat threads 200 -> 50 (no gain: the queue moves into Tomcat, the limit is the WAL sync per commit; reverted) |
-| 2026-10-14 | 1510 | +26.9% | 18 | 42.4 | 158.7 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.603 (1) | 0.201 (1) | synchronous_commit=off (vs 1190: the threads run was reverted) |
+| Date       | Stable req/s | vs previous | p90 ms | p95 ms | p99 ms | Errors | Target                        | CPU backend | CPU db    | Note                                                                                                            |
+| ---------- | -----------: | ----------: | -----: | -----: | -----: | -----: | ----------------------------- | ----------- | --------- | --------------------------------------------------------------------------------------------------------------- |
+| 2026-10-14 |          795 |           - |   66.3 |  167.2 |  399.9 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.497 (1)   | 0.304 (1) | baseline                                                                                                        |
+| 2026-10-14 |          830 |       +4.4% |   31.9 |   78.9 |  256.3 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.499 (1)   | 0.315 (1) | disable security observations                                                                                   |
+| 2026-10-14 |         1190 |      +43.4% |    8.7 |   18.9 |  110.3 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.488 (1)   | 0.25 (1)  | JdbcTemplate autocommit insert                                                                                  |
+| 2026-10-14 |         1140 |       -4.2% |    6.8 |   13.5 |    102 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.48 (1)    | 0.221 (1) | tomcat threads 200 -> 50 (no gain: the queue moves into Tomcat, the limit is the WAL sync per commit; reverted) |
+| 2026-10-14 |         1510 |      +26.9% |     18 |   42.4 |  158.7 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.603 (1)   | 0.201 (1) | synchronous_commit=off (vs 1190: the threads run was reverted)                                                  |
 
 ## read: `GET /{code}` (redirect, 1M links, Zipf traffic)
 
+### Summary
+
+Read capacity rose from **1140 to 3180 req/s (+179%)** under the same latency target. At 3180 req/s the
+2-minute confirm ran at p90/p95/p99 34/57/125 ms with no errors. Every redirect also records a click
+(written in the background), so these numbers include analytics.
+
+| Step                                                       | req/s | Change                                 | Why it helped                                                                                                                                                                   |
+| ---------------------------------------------------------- | ----: | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Baseline                                                   |  1140 |                                        | JPA lookup in a read-only transaction (`BEGIN`, select, `COMMIT`); clicks written as 1000 single-row inserts per batch, each with its own existence check and foreign key check |
+| Click batch as one `insert ... select from unnest(arrays)` |  1250 | +10% (DB CPU per request -31%)         | Postgres plans and runs one statement per batch instead of one per click                                                                                                        |
+| Redirect lookup as one JDBC select in autocommit           |  1720 | +38% (CPU per request -25%)            | No transaction, no entity loading, one round trip instead of two; SQL statements per redirect 4 -> 2                                                                            |
+| Redirects skip the Spring Security filter chain            |  1770 | +3% (profile: -9% JVM CPU per request) | A public redirect needs no authentication; the chain's filters did nothing useful for it                                                                                        |
+| Click flush writes what was queued at its start            |  1870 | +6% (DB CPU per request -9%)           | Draining until empty never stopped under steady traffic and sent ~34 small batches/s, each with its own transaction; now ~2 per second                                          |
+| No foreign key on `clicks`                                 |  1980 | +6% (DB CPU per request -7%)           | Postgres checked the key on every inserted click (0.06 ms per redirect); one SQL statement per redirect is left                                                                 |
+| Caffeine cache for redirect lookups                        |  3180 | +61% (CPU per request -35%)            | 80% of redirects are answered from memory (Zipf traffic over 1M links, 100k entries); DB + OS CPU per request -60%                                                              |
+
+Trade-offs:
+
+- Clicks reach the stats up to ~1 s later (they are written once per second).
+- Without the foreign key, a link's clicks are deleted explicitly in the same transaction as the link. A
+  click that races a delete can leave an orphan row, which no stats query counts (they all start from a link).
+- The cache keeps unknown codes too, so repeated misses don't reach the database. Entries are evicted when a
+  link is created, and after commit when it is updated or deleted; the expiry date is checked on every hit.
+
+Where the CPU goes at the limit: the single vCPU is saturated, ~75% of it by the JVM, mostly Tomcat (~50% of
+JVM CPU) and Spring MVC (~20%) doing fixed per-request work; Postgres has little left to do. The remaining
+options were each under 5% (open-in-view, a different VM OS) or would bypass Spring MVC for one endpoint (a
+hand-written redirect filter), so they were left out.
+
 ### Runs
 
-| Date | Stable req/s | vs previous | p90 ms | p95 ms | p99 ms | Errors | Target | CPU backend | CPU db | Note |
-|---|---:|---:|---:|---:|---:|---:|---|---|---|---|
+| Date       | Stable req/s | vs previous | p90 ms | p95 ms | p99 ms | Errors | Target                        | CPU backend | CPU db    | Note                               |
+| ---------- | -----------: | ----------: | -----: | -----: | -----: | -----: | ----------------------------- | ----------- | --------- | ---------------------------------- |
+| 2026-10-18 |         1140 |           - |   16.7 |   41.3 |    214 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.418 (1)   | 0.451 (1) | baseline                           |
+| 2026-10-18 |         1250 |       +9.6% |   17.1 |   52.6 |  364.1 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.45 (1)    | 0.344 (1) | click batch as one insert (unnest) |
+| 2026-10-18 |         1720 |      +37.6% |   28.8 |   80.2 |  369.5 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.484 (1)   | 0.34 (1)  | autocommit JDBC lookup             |
+| 2026-10-18 |         1770 |       +2.9% |   39.5 |  112.2 |    444 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.455 (1)   | 0.373 (1) | redirects skip the security chain  |
+| 2026-10-18 |         1870 |       +5.6% |   28.5 |   76.8 |  296.3 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.474 (1)   | 0.36 (1)  | flush clicks once per tick         |
+| 2026-10-18 |         1980 |       +5.9% |   53.6 |  198.6 |  475.9 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.503 (1)   | 0.355 (1) | drop the clicks foreign key        |
+| 2026-10-18 |         3180 |      +60.6% |   33.5 |   56.6 |  124.8 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.671 (1)   | 0.225 (1) | Caffeine redirect cache            |

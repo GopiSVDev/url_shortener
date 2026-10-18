@@ -17,6 +17,9 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HexFormat;
@@ -37,12 +40,14 @@ public class ClickRecorder {
     private static final int MAX_HEADER_LENGTH = 512;
     private static final int MAX_REFERRER_HOST_LENGTH = 255;
 
-    // The link may have been deleted after the click; such clicks are skipped
-    // instead of failing the batch
-    private static final String INSERT_CLICK = """
+    // The whole batch in one statement (arrays instead of one execution per row). The link may have been
+    // deleted after the click; such clicks are skipped instead of failing the batch.
+    private static final String INSERT_CLICKS = """
             insert into clicks (short_url_id, clicked_at, referrer_host, browser, os, device, bot, visitor_hash)
-            select ?, ?, ?, ?, ?, ?, ?, ?
-            where exists (select 1 from short_urls where id = ?)
+            select c.short_url_id, c.clicked_at, c.referrer_host, c.browser, c.os, c.device, c.bot, c.visitor_hash
+            from unnest(?::bigint[], ?::timestamp[], ?::text[], ?::text[], ?::text[], ?::text[], ?::boolean[], ?::text[])
+                as c(short_url_id, clicked_at, referrer_host, browser, os, device, bot, visitor_hash)
+            where exists (select 1 from short_urls s where s.id = c.short_url_id)
             """;
 
     // Adds a batch's (non-bot) clicks to the link's running total
@@ -97,8 +102,13 @@ public class ClickRecorder {
             log.warn("Click queue full: dropped {} clicks", droppedNow);
         }
 
+        // Only the clicks queued when the flush started: under steady traffic the queue never empties, and
+        // draining until it did kept the flush running nonstop with small batches (~50 clicks at 1700 req/s),
+        // each with its own transaction and link_stats upserts. Later clicks wait for the next flush.
+        int pending = queue.size();
         List<PendingClick> batch = new ArrayList<>(BATCH_SIZE);
-        while (queue.drainTo(batch, BATCH_SIZE) > 0) {
+        while (pending > 0 && queue.drainTo(batch, Math.min(BATCH_SIZE, pending)) > 0) {
+            pending -= batch.size();
             insert(batch);
             batch.clear();
         }
@@ -116,17 +126,7 @@ public class ClickRecorder {
 
         try {
             transactionTemplate.executeWithoutResult(status -> {
-                jdbcTemplate.batchUpdate(INSERT_CLICK, clicks, clicks.size(), (ps, click) -> {
-                    ps.setLong(1, click.shortUrlId());
-                    ps.setObject(2, click.clickedAt());
-                    ps.setString(3, click.referrerHost());
-                    ps.setString(4, click.agent().browser());
-                    ps.setString(5, click.agent().os());
-                    ps.setString(6, click.agent().device());
-                    ps.setBoolean(7, click.agent().bot());
-                    ps.setString(8, click.visitorHash());
-                    ps.setLong(9, click.shortUrlId());
-                });
+                jdbcTemplate.update(con -> insertClicks(con, clicks));
 
                 jdbcTemplate.batchUpdate(UPSERT_LINK_STATS, totals, totals.size(), (ps, total) -> {
                     ps.setLong(1, total.shortUrlId());
@@ -139,6 +139,42 @@ public class ClickRecorder {
             // Analytics must never break the app; losing a batch is logged instead
             log.warn("Could not save {} clicks", batch.size(), e);
         }
+    }
+
+    private static PreparedStatement insertClicks(Connection con, List<ParsedClick> clicks) throws SQLException {
+        int n = clicks.size();
+        Long[] shortUrlIds = new Long[n];
+        String[] clickedAts = new String[n];
+        String[] referrerHosts = new String[n];
+        String[] browsers = new String[n];
+        String[] oses = new String[n];
+        String[] devices = new String[n];
+        Boolean[] bots = new Boolean[n];
+        String[] visitorHashes = new String[n];
+
+        // Timestamps go as ISO text and are cast to timestamp[] in SQL
+        for (int i = 0; i < n; i++) {
+            ParsedClick click = clicks.get(i);
+            shortUrlIds[i] = click.shortUrlId();
+            clickedAts[i] = click.clickedAt().toString();
+            referrerHosts[i] = click.referrerHost();
+            browsers[i] = click.agent().browser();
+            oses[i] = click.agent().os();
+            devices[i] = click.agent().device();
+            bots[i] = click.agent().bot();
+            visitorHashes[i] = click.visitorHash();
+        }
+
+        PreparedStatement ps = con.prepareStatement(INSERT_CLICKS);
+        ps.setArray(1, con.createArrayOf("int8", shortUrlIds));
+        ps.setArray(2, con.createArrayOf("text", clickedAts));
+        ps.setArray(3, con.createArrayOf("text", referrerHosts));
+        ps.setArray(4, con.createArrayOf("text", browsers));
+        ps.setArray(5, con.createArrayOf("text", oses));
+        ps.setArray(6, con.createArrayOf("text", devices));
+        ps.setArray(7, con.createArrayOf("bool", bots));
+        ps.setArray(8, con.createArrayOf("text", visitorHashes));
+        return ps;
     }
 
     private ParsedClick parse(PendingClick click) {
