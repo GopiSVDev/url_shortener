@@ -37,6 +37,10 @@ public class UrlService {
             returning id
             """;
 
+    private static final String FIND_REDIRECT_TARGET = """
+            select id, original_url, expiration_date from short_urls where short_code = ?
+            """;
+
     private static final String COUNT_CLICKS_PER_LINK = """
             select st.short_url_id, st.click_count from link_stats st
             join short_urls s on s.id = st.short_url_id
@@ -116,17 +120,28 @@ public class UrlService {
         return new ResponseStatusException(HttpStatus.CONFLICT, "This alias is already taken");
     }
 
-    // Returns the link to redirect to: its id (for click recording) and its original URL
-    @Transactional(readOnly = true)
+    // Returns the link to redirect to: its id (for click recording) and its original URL.
+    // One JDBC select in autocommit: a single round trip, no BEGIN/COMMIT and no entity loading.
     public RedirectTarget getRedirectTarget(String shortCode) {
-        ShortUrl url = shortUrlRepository.findByShortCode(shortCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found"));
+        List<RedirectLookup> rows = jdbcTemplate.query(FIND_REDIRECT_TARGET,
+                (rs, rowNum) -> new RedirectLookup(rs.getLong(1), rs.getString(2),
+                        rs.getObject(3, LocalDateTime.class)),
+                shortCode);
 
-        if (url.getExpirationDate() != null && url.getExpirationDate().isBefore(LocalDateTime.now())) {
+        if (rows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found");
+        }
+
+        RedirectLookup url = rows.getFirst();
+
+        if (url.expirationDate() != null && url.expirationDate().isBefore(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.GONE, "Short URL has expired");
         }
 
-        return new RedirectTarget(url.getId(), url.getOriginalUrl());
+        return new RedirectTarget(url.id(), url.originalUrl());
+    }
+
+    private record RedirectLookup(long id, String originalUrl, LocalDateTime expirationDate) {
     }
 
     public record RedirectTarget(long id, String originalUrl) {
