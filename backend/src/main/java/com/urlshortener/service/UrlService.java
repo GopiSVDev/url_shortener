@@ -41,6 +41,10 @@ public class UrlService {
             select id, original_url, expiration_date from short_urls where short_code = ?
             """;
 
+    private static final String DELETE_CLICKS = """
+            delete from clicks where short_url_id = ?
+            """;
+
     private static final String COUNT_CLICKS_PER_LINK = """
             select st.short_url_id, st.click_count from link_stats st
             join short_urls s on s.id = st.short_url_id
@@ -197,7 +201,10 @@ public class UrlService {
 
     @Transactional
     public void deleteUrl(String shortCode, String username) {
-        shortUrlRepository.delete(findOwned(shortCode, username));
+        ShortUrl url = findOwned(shortCode, username);
+        // clicks has no foreign key (see Click), so its rows are not removed by a cascade
+        jdbcTemplate.update(DELETE_CLICKS, url.getId());
+        shortUrlRepository.delete(url);
     }
 
     private boolean isValidUrl(String url) {
