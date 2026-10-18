@@ -19,12 +19,12 @@ Resume bullets (plain text, ready to copy):
 
 Details:
 
-| Step | req/s | Change |
-|---|---:|---|
-| Baseline | 795 | |
-| Disable Spring Security observations | 830 | +4% (profile: -7% CPU per request) |
-| One JDBC insert in autocommit instead of exists check + JPA save in a transaction | 1190 | +43% |
-| `synchronous_commit=off` (commits no longer wait ~1-2 ms for the WAL sync) | 1510 | +27% |
+| Step                                                                              | req/s | Change                             |
+| --------------------------------------------------------------------------------- | ----: | ---------------------------------- |
+| Baseline                                                                          |   795 |                                    |
+| Disable Spring Security observations                                              |   830 | +4% (profile: -7% CPU per request) |
+| One JDBC insert in autocommit instead of exists check + JPA save in a transaction |  1190 | +43%                               |
+| `synchronous_commit=off` (commits no longer wait ~1-2 ms for the WAL sync)        |  1510 | +27%                               |
 
 At 1510 req/s the single vCPU is saturated: the backend uses ~60% of it and Postgres ~20%, and about a third
 of the CPU is kernel work (TCP stack, scheduling) done on their behalf.
@@ -41,17 +41,18 @@ Rejected (CPU compared at 1300 req/s with `diagnose.sh`, no code kept):
 
 ### Runs
 
-| Date | Stable req/s | vs previous | p90 ms | p95 ms | p99 ms | Errors | Target | CPU backend | CPU db | Note |
-|---|---:|---:|---:|---:|---:|---:|---|---|---|---|
-| 2026-10-14 | 795 | - | 66.3 | 167.2 | 399.9 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.497 (1) | 0.304 (1) | baseline |
-| 2026-10-14 | 830 | +4.4% | 31.9 | 78.9 | 256.3 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.499 (1) | 0.315 (1) | disable security observations |
-| 2026-10-14 | 1190 | +43.4% | 8.7 | 18.9 | 110.3 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.488 (1) | 0.25 (1) | JdbcTemplate autocommit insert |
-| 2026-10-14 | 1140 | -4.2% | 6.8 | 13.5 | 102 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.48 (1) | 0.221 (1) | tomcat threads 200 -> 50 (no gain: the queue moves into Tomcat, the limit is the WAL sync per commit; reverted) |
-| 2026-10-14 | 1510 | +26.9% | 18 | 42.4 | 158.7 | 0.00% | p90/p95/p99 <= 150/200/500 ms | 0.603 (1) | 0.201 (1) | synchronous_commit=off (vs 1190: the threads run was reverted) |
+| Date       | Stable req/s | vs previous | p90 ms | p95 ms | p99 ms | Errors | Target                        | CPU backend | CPU db    | Note                                                                                                            |
+| ---------- | -----------: | ----------: | -----: | -----: | -----: | -----: | ----------------------------- | ----------- | --------- | --------------------------------------------------------------------------------------------------------------- |
+| 2026-10-14 |          795 |           - |   66.3 |  167.2 |  399.9 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.497 (1)   | 0.304 (1) | baseline                                                                                                        |
+| 2026-10-14 |          830 |       +4.4% |   31.9 |   78.9 |  256.3 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.499 (1)   | 0.315 (1) | disable security observations                                                                                   |
+| 2026-10-14 |         1190 |      +43.4% |    8.7 |   18.9 |  110.3 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.488 (1)   | 0.25 (1)  | JdbcTemplate autocommit insert                                                                                  |
+| 2026-10-14 |         1140 |       -4.2% |    6.8 |   13.5 |    102 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.48 (1)    | 0.221 (1) | tomcat threads 200 -> 50 (no gain: the queue moves into Tomcat, the limit is the WAL sync per commit; reverted) |
+| 2026-10-14 |         1510 |      +26.9% |     18 |   42.4 |  158.7 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.603 (1)   | 0.201 (1) | synchronous_commit=off (vs 1190: the threads run was reverted)                                                  |
 
 ## read: `GET /{code}` (redirect, 1M links, Zipf traffic)
 
 ### Runs
 
-| Date | Stable req/s | vs previous | p90 ms | p95 ms | p99 ms | Errors | Target | CPU backend | CPU db | Note |
-|---|---:|---:|---:|---:|---:|---:|---|---|---|---|
+| Date       | Stable req/s | vs previous | p90 ms | p95 ms | p99 ms | Errors | Target                        | CPU backend | CPU db    | Note     |
+| ---------- | -----------: | ----------: | -----: | -----: | -----: | -----: | ----------------------------- | ----------- | --------- | -------- |
+| 2026-10-18 |         1140 |           - |   16.7 |   41.3 |    214 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.418 (1)   | 0.451 (1) | baseline |
