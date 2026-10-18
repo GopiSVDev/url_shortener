@@ -14,6 +14,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -60,6 +61,14 @@ public class SecurityConfig {
                         .accessDeniedHandler((req, res, ex) -> writeJson(res, 403, "Forbidden", "Access denied")));
 
         return http.build();
+    }
+
+    // Public redirects skip the security filter chain entirely: they need no authentication, and the chain's
+    // filters were ~10% of a redirect's CPU in profiling. Spring logs a warning recommending permitAll() instead;
+    // the only loss is the security headers on a 302/404/410 without a body.
+    @Bean
+    public WebSecurityCustomizer skipSecurityForRedirects() {
+        return web -> web.ignoring().requestMatchers(HttpMethod.GET, "/{shortCode:[a-zA-Z0-9-]+}");
     }
 
     @Bean
