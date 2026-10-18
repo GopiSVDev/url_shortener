@@ -8,6 +8,37 @@ run on the host, on other cores.
 
 ## write: `POST /api/urls` (anonymous create)
 
+### Summary
+
+Resume bullets (plain text, ready to copy):
+
+- Load tested a Java Spring Boot and PostgreSQL URL shortener with k6 on a 1 vCPU virtual machine, raising link creation throughput from 795 to 1,510 requests per second (90% increase) under a fixed p99 latency target of 500 ms.
+- Profiled the write path with async-profiler and Prometheus and replaced a three-statement JPA transaction with a single JDBC insert backed by a unique index, increasing throughput by 43%.
+- Configured PostgreSQL asynchronous commit to remove the WAL disk sync from each request, increasing throughput by a further 27% with a bounded data loss window of under one second on a crash.
+- Evaluated virtual threads, Docker host networking and request batching with CPU and latency measurements, and rejected each with data on a CPU-bound single-core workload.
+
+Details:
+
+| Step | req/s | Change |
+|---|---:|---|
+| Baseline | 795 | |
+| Disable Spring Security observations | 830 | +4% (profile: -7% CPU per request) |
+| One JDBC insert in autocommit instead of exists check + JPA save in a transaction | 1190 | +43% |
+| `synchronous_commit=off` (commits no longer wait ~1-2 ms for the WAL sync) | 1510 | +27% |
+
+At 1510 req/s the single vCPU is saturated: the backend uses ~60% of it and Postgres ~20%, and about a third
+of the CPU is kernel work (TCP stack, scheduling) done on their behalf.
+
+Rejected (CPU compared at 1300 req/s with `diagnose.sh`, no code kept):
+
+- Tomcat 50 threads instead of 200: no gain (1140 req/s, row below).
+- Host networking instead of the Docker bridge: packet handling fell from 13.6% to 7.8% of the CPU, but idle
+  CPU did not change (17.2% vs 16.6%).
+- Virtual threads: ~9 points less CPU between stalls, but with one carrier thread per CPU a pinned carrier
+  stalled every request for 13-24 s; with 4 carriers the stalls and the saving both disappeared (p95 33 vs 187 ms).
+- Batching inserts across requests: with async commit an insert takes ~0.1 ms, so batches averaged 1.3 rows,
+  and handing each request to a writer thread cost more CPU than it saved (idle 17.2% vs 4.7%).
+
 ### Runs
 
 | Date | Stable req/s | vs previous | p90 ms | p95 ms | p99 ms | Errors | Target | CPU backend | CPU db | Note |

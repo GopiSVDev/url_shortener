@@ -8,7 +8,8 @@
 #             waiting on WAL/locks, or idle waiting for the JVM) and pg_stat_wal with
 #             track_wal_io_timing (WAL syncs per commit, ms per sync)
 #   Kernel    VM CPU split from /proc/stat (user, system, softirq, iowait, steal), pressure stall
-#             info /proc/pressure/{cpu,io} (time tasks waited for a CPU or for I/O), vmstat run queue
+#             info /proc/pressure/{cpu,io} (time tasks waited for a CPU or for I/O), vmstat run queue,
+#             CPU per process name from /proc/<pid>/stat (java, postgres, docker-proxy, kernel threads)
 #   JVM       async-profiler wall-clock profile of the Tomcat request threads (what they wait on)
 #
 # All three cover the same window: MEASURE_SECONDS (default 60) starting after START_SECONDS
@@ -73,10 +74,19 @@ db_snapshot() {
 kernel_snapshot() {
   "${in_vm[@]}" sh -c 'date +%s%N; head -1 /proc/stat; cat /proc/pressure/cpu /proc/pressure/io'
 }
+# "pid name user+system ticks" for every process; the name is between the first "(" and the last ")"
+proc_snapshot() {
+  "${in_vm[@]}" sh -c 'cat /proc/[0-9]*/stat 2>/dev/null' | awk '{
+    o = index($0, "("); c = match($0, /\) [A-Za-z] /)
+    name = substr($0, o + 1, c - o - 1); gsub(/ /, "_", name)
+    split(substr($0, c + 2), f, " ")
+    print substr($0, 1, o - 2), name, f[12] + f[13] }'
+}
 
 echo "Measuring for ${MEASURE_SECONDS}s ..."
 db_before=$(db_snapshot)
 kernel_before=$(kernel_snapshot)
+proc_snapshot >"$out/proc-before.txt"
 
 # One Postgres session samples pg_stat_activity in a loop (cheap: no new process per sample).
 # Only the app's connections (pgjdbc). The stats snapshot is cleared each round, otherwise the
@@ -106,6 +116,7 @@ vmstat_pid=$!
 
 db_after=$(db_snapshot)
 kernel_after=$(kernel_snapshot)
+proc_snapshot >"$out/proc-after.txt"
 window_end=$(date +%s)
 wait "$vmstat_pid" || true
 wait "$pg_pid"
@@ -189,6 +200,18 @@ req_rate=$(prom "$reqs / $MEASURE_SECONDS")
     }'
   awk 'NR > 3 && $1 ~ /^[0-9]+$/ { n++; r += $1; if ($1 > max) max = $1 }
        END { if (n) printf "- Run queue (vmstat r): avg %.1f, max %d tasks running or waiting for the 1 CPU\n", r / n, max }' "$out/vmstat.txt"
+  echo
+  echo "CPU per process name over the window (user + system, % of the 1 vCPU; softirq work is mostly"
+  echo "charged to whichever process was running). Processes that exited during the window are missing."
+  echo
+  echo "| Process | Processes | CPU % |"
+  echo "|---|---:|---:|"
+  hz=$("${in_vm[@]}" getconf CLK_TCK)
+  awk -v hz="$hz" -v win="$MEASURE_SECONDS" '
+    NR == FNR { before[$1] = $3; next }
+    { d = $3 - before[$1]; if (d <= 0) next; cpu[$2] += d; n[$2]++ }
+    END { for (p in cpu) printf "| %s | %d | %.1f |\n", p, n[p], 100 * cpu[p] / hz / win }' \
+    "$out/proc-before.txt" "$out/proc-after.txt" | sort -t'|' -k4 -rn | head -15
   echo
 
   echo "## JVM: where the Tomcat request threads spent their time (wall clock)"

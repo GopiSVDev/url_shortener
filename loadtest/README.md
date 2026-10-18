@@ -6,15 +6,20 @@ recorded, so the effect of each optimization is visible in [results/RESULTS.md](
 
 ## Contents
 
-- [Test environment](#test-environment)
-- [Pass criteria](#pass-criteria)
-- [Scenarios](#scenarios)
-- [Prerequisites](#prerequisites)
-- [Running a test](#running-a-test)
-- [Profiling](#profiling)
-- [Diagnosing where the time goes](#diagnosing-where-the-time-goes)
-- [Reading the results](#reading-the-results)
-- [Files](#files)
+- [Load testing](#load-testing)
+  - [Contents](#contents)
+  - [Test environment](#test-environment)
+  - [Pass criteria](#pass-criteria)
+  - [Scenarios](#scenarios)
+  - [Prerequisites](#prerequisites)
+  - [Running a test](#running-a-test)
+    - [1. Prepare](#1-prepare)
+    - [2. Find the capacity](#2-find-the-capacity)
+    - [Single run at a fixed rate](#single-run-at-a-fixed-rate)
+  - [Profiling](#profiling)
+  - [Diagnosing where the time goes](#diagnosing-where-the-time-goes)
+  - [Reading the results](#reading-the-results)
+  - [Files](#files)
 
 ## Test environment
 
@@ -211,7 +216,7 @@ loadtest/diagnose.sh write 1300 180 "where does DB hold time go"
 | Side | Source | Shows |
 |---|---|---|
 | Postgres | `pg_stat_activity` sampled every 10 ms, `pg_stat_wal` with `track_wal_io_timing` | What app connections do: run SQL, wait on WAL or locks, or sit idle waiting for the JVM; WAL syncs per commit and ms per sync |
-| VM kernel | `/proc/stat`, `/proc/pressure/{cpu,io}`, `vmstat` | CPU split incl. iowait and steal; time tasks waited for the CPU or for I/O; run queue |
+| VM kernel | `/proc/stat`, `/proc/pressure/{cpu,io}`, `vmstat`, `/proc/<pid>/stat` | CPU split incl. iowait and steal; time tasks waited for the CPU or for I/O; run queue; CPU per process name (java, postgres, docker-proxy, kernel threads) |
 | JVM | async-profiler wall-clock profile | What the Tomcat request threads wait on (pool, Postgres reply, CPU) |
 
 It runs k6 with `taskset` itself, turns `track_wal_io_timing` on only for the run, and saves `summary.md`
