@@ -10,24 +10,27 @@ run on the host, on other cores.
 
 ### Summary
 
-Resume bullets (plain text, ready to copy):
+Write capacity rose from **795 to 1510 req/s (+90%)** under the same latency target. At 1510 req/s the
+2-minute confirm ran at p90/p95/p99 18/42/159 ms with no errors.
 
-- Load tested a Java Spring Boot and PostgreSQL URL shortener with k6 on a 1 vCPU virtual machine, raising link creation throughput from 795 to 1,510 requests per second (90% increase) under a fixed p99 latency target of 500 ms.
-- Profiled the write path with async-profiler and Prometheus and replaced a three-statement JPA transaction with a single JDBC insert backed by a unique index, increasing throughput by 43%.
-- Configured PostgreSQL asynchronous commit to remove the WAL disk sync from each request, increasing throughput by a further 27% with a bounded data loss window of under one second on a crash.
-- Evaluated virtual threads, Docker host networking and request batching with CPU and latency measurements, and rejected each with data on a CPU-bound single-core workload.
+| Step                                 | req/s | Change                               | Why it helped                                                                                                   |
+| ------------------------------------ | ----: | ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Baseline                             |   795 |                                      | Exists check + JPA save inside a transaction: 3 statements and 2 round trips per create                         |
+| Disable Spring Security observations |   830 | +4% (profile: -7% CPU per request)   | Security observations wrapped every filter in timing and tracing objects                                        |
+| One JDBC insert in autocommit        |  1190 | +43% (profile: -22% CPU per request) | One statement and one round trip; a short code collision is caught by the unique index instead of checked first |
+| `synchronous_commit=off`             |  1510 | +27%                                 | Commits no longer wait ~1-2 ms for the WAL to be synced to disk                                                 |
 
-Details:
+Trade-offs:
 
-| Step                                                                              | req/s | Change                             |
-| --------------------------------------------------------------------------------- | ----: | ---------------------------------- |
-| Baseline                                                                          |   795 |                                    |
-| Disable Spring Security observations                                              |   830 | +4% (profile: -7% CPU per request) |
-| One JDBC insert in autocommit instead of exists check + JPA save in a transaction |  1190 | +43%                               |
-| `synchronous_commit=off` (commits no longer wait ~1-2 ms for the WAL sync)        |  1510 | +27%                               |
+- `synchronous_commit=off`: a crash can lose the last ~0.6 s of commits (never corrupts data). Acceptable
+  for link creation; the client can create the link again.
+- Short codes stay random and unguessable; a collision (rare with 7 base62 characters) is retried with a new
+  code.
 
-At 1510 req/s the single vCPU is saturated: the backend uses ~60% of it and Postgres ~20%, and about a third
-of the CPU is kernel work (TCP stack, scheduling) done on their behalf.
+Where the CPU goes at the limit: the single vCPU is saturated (VM CPU 0.9-1.0). The backend uses ~60% of it
+and Postgres ~20%, and about a third of the CPU is kernel work (TCP stack, scheduling) done on their behalf.
+Per create, the JVM spends ~32% in Spring MVC (arguments, JSON, validation, response), ~25% in Tomcat, ~12% in
+the insert and ~9% in the security chain.
 
 Rejected (CPU compared at 1300 req/s with `diagnose.sh`, no code kept):
 
@@ -50,6 +53,35 @@ Rejected (CPU compared at 1300 req/s with `diagnose.sh`, no code kept):
 | 2026-10-14 |         1510 |      +26.9% |     18 |   42.4 |  158.7 |  0.00% | p90/p95/p99 <= 150/200/500 ms | 0.603 (1)   | 0.201 (1) | synchronous_commit=off (vs 1190: the threads run was reverted)                                                  |
 
 ## read: `GET /{code}` (redirect, 1M links, Zipf traffic)
+
+### Summary
+
+Read capacity rose from **1140 to 3180 req/s (+179%)** under the same latency target. At 3180 req/s the
+2-minute confirm ran at p90/p95/p99 34/57/125 ms with no errors. Every redirect also records a click
+(written in the background), so these numbers include analytics.
+
+| Step                                                       | req/s | Change                                 | Why it helped                                                                                                                                                                   |
+| ---------------------------------------------------------- | ----: | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Baseline                                                   |  1140 |                                        | JPA lookup in a read-only transaction (`BEGIN`, select, `COMMIT`); clicks written as 1000 single-row inserts per batch, each with its own existence check and foreign key check |
+| Click batch as one `insert ... select from unnest(arrays)` |  1250 | +10% (DB CPU per request -31%)         | Postgres plans and runs one statement per batch instead of one per click                                                                                                        |
+| Redirect lookup as one JDBC select in autocommit           |  1720 | +38% (CPU per request -25%)            | No transaction, no entity loading, one round trip instead of two; SQL statements per redirect 4 -> 2                                                                            |
+| Redirects skip the Spring Security filter chain            |  1770 | +3% (profile: -9% JVM CPU per request) | A public redirect needs no authentication; the chain's filters did nothing useful for it                                                                                        |
+| Click flush writes what was queued at its start            |  1870 | +6% (DB CPU per request -9%)           | Draining until empty never stopped under steady traffic and sent ~34 small batches/s, each with its own transaction; now ~2 per second                                          |
+| No foreign key on `clicks`                                 |  1980 | +6% (DB CPU per request -7%)           | Postgres checked the key on every inserted click (0.06 ms per redirect); one SQL statement per redirect is left                                                                 |
+| Caffeine cache for redirect lookups                        |  3180 | +61% (CPU per request -35%)            | 80% of redirects are answered from memory (Zipf traffic over 1M links, 100k entries); DB + OS CPU per request -60%                                                              |
+
+Trade-offs:
+
+- Clicks reach the stats up to ~1 s later (they are written once per second).
+- Without the foreign key, a link's clicks are deleted explicitly in the same transaction as the link. A
+  click that races a delete can leave an orphan row, which no stats query counts (they all start from a link).
+- The cache keeps unknown codes too, so repeated misses don't reach the database. Entries are evicted when a
+  link is created, and after commit when it is updated or deleted; the expiry date is checked on every hit.
+
+Where the CPU goes at the limit: the single vCPU is saturated, ~75% of it by the JVM, mostly Tomcat (~50% of
+JVM CPU) and Spring MVC (~20%) doing fixed per-request work; Postgres has little left to do. The remaining
+options were each under 5% (open-in-view, a different VM OS) or would bypass Spring MVC for one endpoint (a
+hand-written redirect filter), so they were left out.
 
 ### Runs
 

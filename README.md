@@ -18,13 +18,13 @@ Built with Spring Boot 4 (Java 25), PostgreSQL and React Router, and load tested
 
 ## Tech stack
 
-| Layer | Technologies |
-|---|---|
-| Backend | Java 25, Spring Boot 4, Spring Security (JWT), Spring Data JPA, JdbcTemplate, Caffeine |
-| Frontend | React 19, React Router 8 (server-side rendering), Mantine, Zod |
-| Database | PostgreSQL 16 |
-| Testing | JUnit 5, Testcontainers, MockMvc, k6, async-profiler |
-| Infrastructure | Docker Compose, LXD VM and Prometheus (load testing only) |
+| Layer          | Technologies                                                                           |
+| -------------- | -------------------------------------------------------------------------------------- |
+| Backend        | Java 25, Spring Boot 4, Spring Security (JWT), Spring Data JPA, JdbcTemplate, Caffeine |
+| Frontend       | React 19, React Router 8 (server-side rendering), Mantine, Zod                         |
+| Database       | PostgreSQL 16                                                                          |
+| Testing        | JUnit 5, Testcontainers, MockMvc, k6, async-profiler                                   |
+| Infrastructure | Docker Compose, LXD VM and Prometheus (load testing only)                              |
 
 ## Architecture
 
@@ -108,16 +108,20 @@ therefore use the real client IP.
 
 ## Performance
 
-Load tested with k6 under a fixed resource budget (backend 0.6 CPU, PostgreSQL 0.4 CPU) and profiled with
-async-profiler. Each optimization was measured separately; see [loadtest/README.md](loadtest/README.md)
-for the method and [loadtest/results/RESULTS.md](loadtest/results/RESULTS.md) for every run.
+Load tested with k6 on a fixed hardware budget: backend and PostgreSQL share a VM with 1 vCPU and 2 GB of
+RAM, while k6 and monitoring run outside it. Profiled with async-profiler. Each optimization was measured
+separately against a latency target (p90/p95/p99 ≤ 150/200/500 ms, under 1% errors); see
+[loadtest/README.md](loadtest/README.md) for the method and
+[loadtest/results/RESULTS.md](loadtest/results/RESULTS.md) for every run.
 
-| Endpoint | Before | After |
-|---|---:|---:|
-| `POST /api/urls` (create link) | 890 req/s | 1185–1415 req/s |
-| `GET /{code}` (redirect, 1M links, Zipf-distributed traffic) | 1295 req/s | 2625–3160 req/s |
+| Endpoint                                                              |     Before |              After | p99 at the limit |
+| --------------------------------------------------------------------- | ---------: | -----------------: | ---------------: |
+| `POST /api/urls` (create link)                                        |  795 req/s |  1510 req/s (+90%) |           159 ms |
+| `GET /{code}` (redirect with click recording, 1M links, Zipf traffic) | 1140 req/s | 3180 req/s (+179%) |           125 ms |
 
-These results were measured before click analytics were added.
+The biggest gains: one JDBC statement in autocommit instead of a JPA transaction on both hot paths,
+asynchronous commit in PostgreSQL for link creation, set-based batch inserts for clicks, and the redirect
+cache. At the final numbers the single vCPU is saturated.
 
 ## Getting started
 
@@ -135,22 +139,22 @@ docker compose up -d --build
 
 Before starting, fill in the values in `.env`. The most important ones:
 
-| Variable | Description |
-|---|---|
-| `POSTGRES_PASSWORD` | Database password |
-| `JWT_SECRET` | Base64-encoded 256-bit key (`openssl rand -base64 32`) |
-| `SESSION_SECRET` | Signs the frontend session cookie (`openssl rand -base64 32`) |
-| `ANALYTICS_VISITOR_SALT` | Salt for visitor hashes (`openssl rand -base64 32`) |
-| `APP_BASE_URL` | Public base URL of short links, e.g. `http://localhost:4000` |
-| `RATE_LIMIT_ENABLED` | `true` by default; set to `false` for load tests |
+| Variable                 | Description                                                   |
+| ------------------------ | ------------------------------------------------------------- |
+| `POSTGRES_PASSWORD`      | Database password                                             |
+| `JWT_SECRET`             | Base64-encoded 256-bit key (`openssl rand -base64 32`)        |
+| `SESSION_SECRET`         | Signs the frontend session cookie (`openssl rand -base64 32`) |
+| `ANALYTICS_VISITOR_SALT` | Salt for visitor hashes (`openssl rand -base64 32`)           |
+| `APP_BASE_URL`           | Public base URL of short links, e.g. `http://localhost:4000`  |
+| `RATE_LIMIT_ENABLED`     | `true` by default; set to `false` for load tests              |
 
 Once the containers are healthy:
 
-| Service | URL |
-|---|---|
-| Frontend | http://localhost:8000 |
+| Service                     | URL                   |
+| --------------------------- | --------------------- |
+| Frontend                    | http://localhost:8000 |
 | Backend API and short links | http://localhost:4000 |
-| pgAdmin | http://localhost:5050 |
+| pgAdmin                     | http://localhost:5050 |
 
 ### Run the tests
 
@@ -161,17 +165,17 @@ cd frontend && pnpm typecheck && pnpm build
 
 ## API
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `POST` | `/api/auth/register` | – | Create an account, returns tokens |
-| `POST` | `/api/auth/login` | – | Log in, returns tokens |
-| `POST` | `/api/auth/refresh` | – | Exchange a refresh token for new tokens |
-| `POST` | `/api/urls` | optional | Create a link: `originalUrl`, optional `alias` and `expirationDate` |
-| `GET` | `/api/urls` | required | List your links, newest first, with click counts |
-| `PUT` | `/api/urls/{code}` | owner | Replace the target URL and expiry |
-| `DELETE` | `/api/urls/{code}` | owner | Delete a link and its clicks |
-| `GET` | `/api/urls/{code}/analytics?days=30` | owner | Stats for the last 1–365 days |
-| `GET` | `/{code}` | – | Redirect (`302`), `404` if unknown, `410` if expired |
+| Method   | Path                                 | Auth     | Description                                                         |
+| -------- | ------------------------------------ | -------- | ------------------------------------------------------------------- |
+| `POST`   | `/api/auth/register`                 | –        | Create an account, returns tokens                                   |
+| `POST`   | `/api/auth/login`                    | –        | Log in, returns tokens                                              |
+| `POST`   | `/api/auth/refresh`                  | –        | Exchange a refresh token for new tokens                             |
+| `POST`   | `/api/urls`                          | optional | Create a link: `originalUrl`, optional `alias` and `expirationDate` |
+| `GET`    | `/api/urls`                          | required | List your links, newest first, with click counts                    |
+| `PUT`    | `/api/urls/{code}`                   | owner    | Replace the target URL and expiry                                   |
+| `DELETE` | `/api/urls/{code}`                   | owner    | Delete a link and its clicks                                        |
+| `GET`    | `/api/urls/{code}/analytics?days=30` | owner    | Stats for the last 1–365 days                                       |
+| `GET`    | `/{code}`                            | –        | Redirect (`302`), `404` if unknown, `410` if expired                |
 
 ## Project structure
 
