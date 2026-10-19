@@ -1,6 +1,6 @@
 # Frontend
 
-Server-rendered React Router 8 app with Mantine. It talks to the Spring backend from the server only, so tokens never reach browser JavaScript.
+Server-rendered React Router 8 app with hand-written CSS (no UI library). It talks to the Spring backend from the server only, so tokens never reach browser JavaScript.
 
 ## Development
 
@@ -46,11 +46,13 @@ All server-only code lives in `app/.server/`: shared infrastructure at the top, 
 
 ## Styling
 
-- Use Mantine components and style props (`p`, `bg`, `bd`, `display={{ base: "none", sm: "block" }}`, ...) for layout and spacing.
-- For colors that differ between light and dark mode, use the tokens from `app-theme.tsx` (`bg={surface.muted}`, `color={accent}`). Each token is defined once with a light and dark value in `cssVariablesResolver`; add new ones there instead of writing `light-dark()` CSS.
-- Use a CSS module only for what props can't express, such as hover/active states.
-- The palette (`brand`, `gray`, `dark`) lives at the top of `app-theme.tsx`; change it there to re-brand.
-- `app.css` imports Mantine styles per component to keep CSS small. **When you use a new Mantine component, add its stylesheet there**, or it renders unstyled.
+- Design tokens (colors, radii, shadows, fonts) are CSS variables at the top of `app/app.css`, with dark values under `:root[data-theme="dark"]`. Use the variables, never raw colors, so both themes work.
+- `app.css` also holds the shared primitives: `.btn` (`.btn-primary`, `.btn-ghost`, `.btn-danger`, `.btn-sm`, `.btn-lg`), `.icon-btn`, `.input`, `.field` + `.field-label`/`.field-hint`/`.field-error`, `.card`, `.alert`, `.badge`, `.page` (centered content column).
+- Page and component styles live in a CSS module next to the component (`links.module.css`, `AppLayout.module.css`, ...).
+- Five label colors (tomato, marigold, jade, cobalt, plum) color-code items: set `data-color="jade"` on an element and use `var(--c)` (mark), `var(--t)` (tint) and `var(--i)` (text on the tint) inside it. `lib/color.ts` picks a stable color per short code or username.
+- Theme: an inline script in `root.tsx` (`lib/theme.ts`) sets `data-theme` before first paint from the saved choice or the system setting, so dark mode never flashes.
+- Fonts are self-hosted from npm (`@fontsource-variable/schibsted-grotesk`, `@fontsource-variable/jetbrains-mono` for short codes).
+- Dialogs use the native `<dialog>` (`components/Dialog.tsx`): focus trap, Escape and backdrop come from the browser.
 
 ## Auth
 
@@ -60,10 +62,10 @@ All server-only code lives in `app/.server/`: shared infrastructure at the top, 
 
 ## Layout and pages
 
-- To add a sidebar link, add an entry to `items` in `components/layout/Sidebar.tsx`.
-- To show a page title in the top bar, add `export const handle: RouteHandle = { title: "nav.something" }` to the route module.
-- The collapsed state is stored in a `sidebar` cookie, so the server renders it with no flash. `Ctrl/Cmd+B` toggles it.
+- `components/layout/AppLayout.tsx` is the shell: sticky header (nav, theme toggle, account), main, footer. Below 720px the nav moves into a menu button.
+- To add a header link, add an entry to `nav` in `AppLayout.tsx`.
 - Unknown URLs render `components/NotFoundPage.tsx` with a real 404 status, either from the catch-all route or from the layout's error boundary (for paths like `/xyz`, where `xyz` is rejected as a locale).
+- A new top-level page must also be added to the proxy's page list in `deploy/Caddyfile` and to `RESERVED_ALIASES` in the backend, or the proxy treats `/page` as a short code.
 
 ## QR codes
 
@@ -71,7 +73,7 @@ All server-only code lives in `app/.server/`: shared infrastructure at the top, 
 
 ## Adding a language
 
-Add `app/locales/<code>.json` (for example `de.json`) with any subset of the keys in `en.json`. Missing keys fall back to English. That's all: it's served at `/<code>/...`, appears in the sidebar language switcher, and gets `hreflang` and sitemap entries. English (the default) has no prefix.
+Add `app/locales/<code>.json` (for example `de.json`) with any subset of the keys in `en.json`. Missing keys fall back to English. Then add a language switcher to the header (there is none while only English exists) and the locale prefix to the page list in `deploy/Caddyfile`. It's served at `/<code>/...` and gets `hreflang` and sitemap entries. English (the default) has no prefix.
 
 ## Brand and domain
 

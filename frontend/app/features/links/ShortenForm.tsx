@@ -1,35 +1,21 @@
 import { useEffect, useState } from "react";
 import {
-  Alert,
-  Anchor,
-  Box,
-  Button,
-  Collapse,
-  Flex,
-  Group,
-  Image,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Text,
-  TextInput,
-  UnstyledButton,
-} from "@mantine/core";
-import {
+  IconAdjustmentsHorizontal,
   IconAlertCircle,
+  IconArrowRight,
   IconChartBar,
   IconChevronDown,
   IconDownload,
 } from "@tabler/icons-react";
 import { Link, useFetcher } from "react-router";
-import { surface } from "~/app-theme";
 import { useI18n } from "~/lib/i18n/i18n";
 import { useRootData } from "~/lib/root-data";
 import { CopyLinkButton } from "./CopyLinkButton";
-import { displayUrl } from "./format";
+import { ShortUrl } from "./ShortUrl";
+import { useQrCode, downloadQrPng } from "./qr";
 import type { Link as ShortLink } from "~/.server/links/links-api";
 import type { LinkFormErrors } from "~/.server/links/link-form";
-import { createQrDataUrl, downloadQrPng } from "./qr";
+import styles from "./ShortenForm.module.css";
 
 export type ShortenActionData = {
   link: ShortLink | null;
@@ -44,8 +30,14 @@ export function ShortenForm() {
   const [edited, setEdited] = useState<ReadonlySet<string>>(new Set());
   const errors = fetcher.data?.errors;
   const link = fetcher.data?.link ?? null;
+  const busy = fetcher.state !== "idle";
 
   useEffect(() => setEdited(new Set()), [fetcher.data]);
+
+  // Open the options when the server rejected one of them
+  useEffect(() => {
+    if (errors?.alias || errors?.expiresAt) setOptionsOpen(true);
+  }, [errors]);
 
   const error = (field: keyof LinkFormErrors) => {
     const key = errors?.[field];
@@ -54,205 +46,200 @@ export function ShortenForm() {
   const onEdit = (field: string) => () =>
     setEdited((prev) => new Set(prev).add(field));
 
-  // Open the options when the server rejected one of them
-  useEffect(() => {
-    if (errors?.alias || errors?.expiresAt) setOptionsOpen(true);
-  }, [errors]);
+  const urlError = error("url");
+  const aliasError = error("alias");
+  const expiresError = error("expiresAt");
 
   return (
-    <Paper
-      component="section"
-      withBorder
-      radius="lg"
-      p={{ base: "md", sm: "lg" }}
-      shadow="xs"
-    >
-      <fetcher.Form method="post" noValidate>
+    <section className={styles.wrap}>
+      <fetcher.Form method="post" noValidate className={`card ${styles.form}`}>
         {error("form") && (
-          <Alert
-            color="red"
-            variant="light"
-            icon={<IconAlertCircle size={18} />}
-            role="alert"
-            mb="sm"
-            py="xs"
-          >
+          <div className="alert" role="alert" style={{ marginBottom: 12 }}>
+            <IconAlertCircle size={18} />
             {error("form")}
-          </Alert>
+          </div>
         )}
-        <Group align="flex-start" gap="sm" wrap="wrap">
-          <TextInput
+
+        <div className={styles.row}>
+          <label htmlFor="url" className="visually-hidden">
+            {t("home.form.label")}
+          </label>
+          <input
+            id="url"
             name="url"
             type="text"
             inputMode="url"
             autoComplete="url"
-            size="md"
-            aria-label={t("home.form.label")}
+            autoCapitalize="none"
+            spellCheck={false}
+            className={`input ${styles.urlInput}`}
             placeholder={t("home.form.placeholder")}
-            error={error("url")}
+            aria-invalid={urlError ? true : undefined}
+            aria-describedby={urlError ? "url-error" : undefined}
             onChange={onEdit("url")}
-            flex="1 1 280px"
           />
-          <Button
+          <button
             type="submit"
-            size="md"
-            w={{ base: "100%", xs: "auto" }}
-            loading={fetcher.state !== "idle"}
+            className={`btn btn-primary btn-lg ${styles.submit}`}
+            disabled={busy}
           >
+            {busy ? (
+              <span className="spinner" aria-hidden />
+            ) : (
+              <IconArrowRight size={18} stroke={2.25} />
+            )}
             {t("home.form.submit")}
-          </Button>
-        </Group>
+          </button>
+        </div>
+        {urlError && (
+          <p id="url-error" className="field-error" style={{ marginTop: 8 }}>
+            {urlError}
+          </p>
+        )}
 
-        <UnstyledButton
-          mt="sm"
-          fz="sm"
-          c="dimmed"
+        <button
+          type="button"
+          className={styles.optionsToggle}
           onClick={() => setOptionsOpen((open) => !open)}
           aria-expanded={optionsOpen}
+          aria-controls="link-options"
         >
-          <Group gap={4}>
-            {t("home.form.options")}
-            <IconChevronDown
-              size={14}
-              style={{
-                transform: optionsOpen ? "rotate(180deg)" : undefined,
-                transition: "transform 150ms ease",
-              }}
-            />
-          </Group>
-        </UnstyledButton>
+          <IconAdjustmentsHorizontal size={16} />
+          {t("home.form.options")}
+          <IconChevronDown
+            size={15}
+            style={{
+              transform: optionsOpen ? "rotate(180deg)" : undefined,
+              transition: "transform 150ms ease",
+            }}
+          />
+        </button>
 
-        {/* keepMounted so the option fields are submitted even when collapsed */}
-        <Collapse expanded={optionsOpen} keepMountedMode="display-none">
-          <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm" mt="sm">
-            <TextInput
-              name="alias"
-              label={t("links.alias")}
-              description={t("links.aliasHint")}
-              placeholder="spring-26"
-              maxLength={30}
-              autoCapitalize="none"
-              spellCheck={false}
-              error={error("alias")}
-              onChange={onEdit("alias")}
-            />
-            <TextInput
+        {/* hidden, not unmounted, so the option fields are submitted even when closed */}
+        <div id="link-options" className={styles.options} hidden={!optionsOpen}>
+          <div className="field">
+            <label htmlFor="alias" className="field-label">
+              {t("links.alias")}
+            </label>
+            <div className={styles.aliasInput}>
+              <span aria-hidden>/</span>
+              <input
+                id="alias"
+                name="alias"
+                className="input mono"
+                placeholder="spring-26"
+                maxLength={30}
+                autoCapitalize="none"
+                spellCheck={false}
+                aria-invalid={aliasError ? true : undefined}
+                onChange={onEdit("alias")}
+              />
+            </div>
+            {aliasError ? (
+              <p className="field-error">{aliasError}</p>
+            ) : (
+              <p className="field-hint">{t("links.aliasHint")}</p>
+            )}
+          </div>
+          <div className="field">
+            <label htmlFor="expiresAt" className="field-label">
+              {t("links.expiresAt")}
+            </label>
+            <input
+              id="expiresAt"
               name="expiresAt"
               type="datetime-local"
-              label={t("links.expiresAt")}
-              description={t("links.expiresHint")}
-              error={error("expiresAt")}
+              className="input"
+              aria-invalid={expiresError ? true : undefined}
               onChange={onEdit("expiresAt")}
             />
-          </SimpleGrid>
-        </Collapse>
+            {expiresError ? (
+              <p className="field-error">{expiresError}</p>
+            ) : (
+              <p className="field-hint">{t("links.expiresHint")}</p>
+            )}
+          </div>
+        </div>
       </fetcher.Form>
 
-      {link && <ShortenResult link={link} />}
-    </Paper>
+      <div aria-live="polite">
+        {link && <ShortenResult key={link.shortCode} link={link} />}
+      </div>
+    </section>
   );
 }
 
 function ShortenResult({ link }: { link: ShortLink }) {
   const { t, localize } = useI18n();
   const { user } = useRootData();
-  const [qr, setQr] = useState<string | null>(null);
-
-  useEffect(() => {
-    let current = true;
-    createQrDataUrl(link.shortUrl).then((url) => current && setQr(url));
-    return () => {
-      current = false;
-    };
-  }, [link.shortUrl]);
+  const qr = useQrCode(link.shortUrl);
 
   return (
-    <Box aria-live="polite">
-      {/* Details left, QR right; on phones the QR stacks on top. */}
-      <Flex
-        direction={{ base: "column-reverse", xs: "row" }}
-        align={{ base: "stretch", xs: "center" }}
-        gap="lg"
-        mt="md"
-        p="md"
-        bg={surface.muted}
-        bd="1px solid var(--mantine-color-default-border)"
-        bdrs="var(--mantine-radius-md)"
-      >
-        <Stack gap={4} flex={1} miw={0}>
-          <Text size="xs" c="dimmed" fw={500}>
-            {t("home.form.result")}
-          </Text>
-          <Text fw={600} size="xl" truncate>
-            {displayUrl(link.shortUrl)}
-          </Text>
-          <Text size="sm" c="dimmed" truncate title={link.originalUrl}>
-            {link.originalUrl}
-          </Text>
-          <Group gap="xs" mt="sm">
-            <CopyLinkButton value={link.shortUrl} variant="filled" />
-            <Button
-              size="xs"
-              variant="default"
-              leftSection={<IconDownload size={14} />}
-              disabled={!qr}
-              onClick={() => qr && downloadQrPng(qr, `qr-${link.shortCode}`)}
-            >
-              {t("home.form.downloadQr")}
-            </Button>
-            {user && (
-              <Button
-                size="xs"
-                variant="default"
-                component={Link}
-                to={localize(`/links/${link.shortCode}`)}
-                leftSection={<IconChartBar size={14} />}
-              >
-                {t("links.viewStats")}
-              </Button>
-            )}
-          </Group>
-        </Stack>
-
-        {/* Always white behind the code so it scans in dark mode too. */}
-        <Paper
-          bg="white"
-          p={6}
-          radius="md"
-          withBorder
-          shadow="sm"
-          mx={{ base: "auto", xs: 0 }}
-          w={194}
-          h={194}
-          style={{ flexShrink: 0 }}
+    <div className={styles.ticket}>
+      <div className={styles.ticketMain}>
+        <p className="eyebrow">{t("home.form.result")}</p>
+        <a
+          href={link.shortUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={styles.shortUrl}
         >
+          <ShortUrl url={link.shortUrl} />
+        </a>
+        <p className={`${styles.original} truncate`} title={link.originalUrl}>
+          {link.originalUrl}
+        </p>
+        <div className={styles.actions}>
+          <CopyLinkButton value={link.shortUrl} primary />
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={!qr}
+            onClick={() => qr && downloadQrPng(qr, `qr-${link.shortCode}`)}
+          >
+            <IconDownload size={15} />
+            {t("common.downloadQr")}
+          </button>
+          {user && (
+            <Link
+              to={localize(`/links/${link.shortCode}`)}
+              className="btn btn-sm"
+            >
+              <IconChartBar size={15} />
+              {t("links.viewStats")}
+            </Link>
+          )}
+        </div>
+        <p className={styles.note}>
+          {user ? (
+            <>
+              {t("home.form.saved")}{" "}
+              <Link to={localize("/links")}>{t("home.form.savedCta")}</Link>
+            </>
+          ) : (
+            <>
+              {t("home.form.anonymous")}{" "}
+              <Link to={localize("/register")}>
+                {t("home.form.anonymousCta")}
+              </Link>
+            </>
+          )}
+        </p>
+      </div>
+
+      <div className={styles.ticketStub}>
+        {/* Always white behind the code so it scans in dark mode too */}
+        <div className={styles.qr}>
           {qr && (
-            <Image
+            <img
               src={qr}
-              alt={t("home.form.qrAlt", { url: link.shortUrl })}
-              w={180}
-              h={180}
+              alt={t("common.qrAlt", { url: link.shortUrl })}
+              width={150}
+              height={150}
             />
           )}
-        </Paper>
-      </Flex>
-      <Text size="sm" c="dimmed" mt="sm" ta="center">
-        {user ? (
-          <>
-            {t("home.form.saved")}{" "}
-            <Anchor component={Link} to={localize("/links")} inherit>
-              {t("home.form.savedCta")}
-            </Anchor>
-          </>
-        ) : (
-          <>
-            {t("home.form.anonymous")}{" "}
-            <Anchor component={Link} to={localize("/register")} inherit>
-              {t("home.form.anonymousCta")}
-            </Anchor>
-          </>
-        )}
-      </Text>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }

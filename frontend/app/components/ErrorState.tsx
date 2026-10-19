@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Container, Group, Stack, Text, Title } from "@mantine/core";
 
 type ErrorStateProps = {
   status: number;
@@ -18,34 +17,32 @@ export function ErrorState({
   actions,
 }: ErrorStateProps) {
   return (
-    <Container
-      size="sm"
-      py={{ base: 48, sm: 72 }}
-      display="flex"
-      mih="calc(100dvh - 160px)"
-      style={{ flexDirection: "column", justifyContent: "center" }}
+    <section
+      className="page"
+      style={{ paddingBlock: "clamp(56px, 12vh, 120px)", maxWidth: 720 }}
     >
-      <Stack align="center" ta="center" gap="md">
-        <Text
-          c="brand"
-          fw={700}
-          size="sm"
-          tt="uppercase"
-          style={{ letterSpacing: "0.08em" }}
-        >
-          {status}
-        </Text>
-        <Title order={1} style={{ letterSpacing: "-0.02em" }}>
-          {title}
-        </Title>
-        <Text c="dimmed" size="lg" maw={440}>
-          {description}
-        </Text>
-        {detail}
-        <Group justify="center" gap="sm" mt="md">
-          {actions}
-        </Group>
-      </Stack>
-    </Container>
+      <p
+        className="mono"
+        style={{
+          fontSize: "clamp(64px, 14vw, 120px)",
+          fontWeight: 700,
+          lineHeight: 1,
+          letterSpacing: "-0.06em",
+          color: "var(--accent)",
+        }}
+      >
+        {status}
+      </p>
+      <h1 style={{ fontSize: "clamp(28px, 4vw, 40px)", marginTop: 16 }}>
+        {title}
+      </h1>
+      <p className="muted" style={{ fontSize: 18, marginTop: 8 }}>
+        {description}
+      </p>
+      {detail && <div style={{ marginTop: 16 }}>{detail}</div>}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 32 }}>
+        {actions}
+      </div>
+    </section>
   );
 }

@@ -1,40 +1,22 @@
-import { useEffect, useState } from "react";
-import {
-  ActionIcon,
-  Alert,
-  Anchor,
-  Badge,
-  Button,
-  Container,
-  Group,
-  Image,
-  Menu,
-  Modal,
-  Paper,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-} from "@mantine/core";
+import { useEffect, useMemo, useState } from "react";
 import {
   IconAlertCircle,
   IconChartBar,
-  IconDotsVertical,
   IconDownload,
-  IconLink,
   IconPencil,
   IconPlus,
   IconQrcode,
+  IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
 import { data, Link, useFetcher } from "react-router";
 import type { Route } from "./+types/links";
 import { parseForm } from "~/.server/form";
-import { surface } from "~/app-theme";
-import type { RouteHandle } from "~/components/layout/AppLayout";
+import { Dialog } from "~/components/Dialog";
 import { Seo } from "~/components/Seo";
 import { authContext, requireUser } from "~/.server/auth/session";
-import { CopyLinkButton } from "~/features/links/CopyLinkButton";
+import { CopyIconButton } from "~/features/links/CopyLinkButton";
+import { ShortUrl } from "~/features/links/ShortUrl";
 import {
   displayUrl,
   formatDate,
@@ -52,12 +34,12 @@ import {
   linkFormSchema,
   type LinkFormErrors,
 } from "~/.server/links/link-form";
-import { createQrDataUrl, downloadQrPng } from "~/features/links/qr";
+import { downloadQrPng, useQrCode } from "~/features/links/qr";
+import { colorFor } from "~/lib/color";
 import { useI18n } from "~/lib/i18n/i18n";
+import styles from "./links.module.css";
 
 export const middleware: Route.MiddlewareFunction[] = [requireUser];
-
-export const handle: RouteHandle = { title: "nav.links" };
 
 export async function loader({ context }: Route.LoaderArgs) {
   const token = context.get(authContext).accessToken!;
@@ -95,171 +77,277 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
+type Sort = "newest" | "clicks" | "az";
+
+const isExpired = (link: ShortLink, now: number) =>
+  link.expirationDate !== null &&
+  new Date(`${link.expirationDate}Z`).getTime() <= now;
+
 export default function Links({ loaderData }: Route.ComponentProps) {
-  const { t, localize } = useI18n();
+  const { t, locale, localize } = useI18n();
   const { links, now } = loaderData;
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<Sort>("newest");
   const [editing, setEditing] = useState<ShortLink | null>(null);
   const [deleting, setDeleting] = useState<ShortLink | null>(null);
   const [qrFor, setQrFor] = useState<ShortLink | null>(null);
 
+  const totalClicks = links.reduce((sum, l) => sum + (l.clickCount ?? 0), 0);
+  const expiredCount = links.filter((l) => isExpired(l, now)).length;
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const matches = q
+      ? links.filter(
+          (l) =>
+            l.shortCode.toLowerCase().includes(q) ||
+            l.originalUrl.toLowerCase().includes(q),
+        )
+      : links;
+    return [...matches].sort((a, b) => {
+      if (sort === "clicks") return (b.clickCount ?? 0) - (a.clickCount ?? 0);
+      if (sort === "az") return a.shortCode.localeCompare(b.shortCode);
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+  }, [links, query, sort]);
+
   return (
-    <Container size="md" py={{ base: 32, sm: 48 }}>
+    <div className="page">
       <Seo title={t("meta.linksTitle")} noIndex />
 
-      <Group justify="space-between" mb="lg">
+      <header className={styles.head}>
         <div>
-          <Title order={1} fz={{ base: 26, sm: 30 }}>
-            {t("links.title")}
-          </Title>
-          <Text c="dimmed" size="sm" mt={4}>
-            {t("links.count", { count: links.length })}
-          </Text>
+          <h1>{t("links.title")}</h1>
+          <p className="muted">{t("links.subtitle")}</p>
         </div>
-        <Button
-          component={Link}
-          to={localize("/")}
-          leftSection={<IconPlus size={16} />}
-        >
+        <Link to={localize("/")} className="btn btn-primary">
+          <IconPlus size={17} stroke={2.25} />
           {t("links.new")}
-        </Button>
-      </Group>
+        </Link>
+      </header>
+
+      <dl className={styles.stats}>
+        <div data-color="tomato">
+          <dt>{t("links.stats.links")}</dt>
+          <dd>{links.length.toLocaleString(locale)}</dd>
+        </div>
+        <div data-color="cobalt">
+          <dt>{t("links.stats.clicks")}</dt>
+          <dd>{totalClicks.toLocaleString(locale)}</dd>
+        </div>
+        <div data-color="jade">
+          <dt>{t("links.stats.active")}</dt>
+          <dd>{(links.length - expiredCount).toLocaleString(locale)}</dd>
+        </div>
+      </dl>
 
       {links.length === 0 ? (
-        <Paper withBorder radius="lg" p="xl" ta="center" bg={surface.muted}>
-          <IconLink size={32} stroke={1.5} />
-          <Text fw={600} mt="sm">
-            {t("links.emptyTitle")}
-          </Text>
-          <Text c="dimmed" size="sm" mt={4}>
-            {t("links.emptyText")}
-          </Text>
-          <Button component={Link} to={localize("/")} mt="md">
+        <div className={styles.empty}>
+          <div className={styles.emptyArt} aria-hidden>
+            <span data-color="tomato" />
+            <span data-color="marigold" />
+            <span data-color="jade" />
+          </div>
+          <h2>{t("links.emptyTitle")}</h2>
+          <p className="muted">{t("links.emptyText")}</p>
+          <Link to={localize("/")} className="btn btn-primary">
             {t("links.new")}
-          </Button>
-        </Paper>
+          </Link>
+        </div>
       ) : (
-        <Stack gap="sm">
-          {links.map((link) => (
-            <LinkRow
-              key={link.shortCode}
-              link={link}
-              now={now}
-              onEdit={() => setEditing(link)}
-              onDelete={() => setDeleting(link)}
-              onQr={() => setQrFor(link)}
-            />
-          ))}
-        </Stack>
+        <>
+          <div className={styles.toolbar}>
+            <div className={styles.search}>
+              <IconSearch size={17} aria-hidden />
+              <input
+                type="search"
+                className="input"
+                placeholder={t("links.search")}
+                aria-label={t("links.search")}
+                value={query}
+                onChange={(event) => setQuery(event.currentTarget.value)}
+              />
+            </div>
+            <select
+              className="input"
+              aria-label={t("links.sort.label")}
+              value={sort}
+              onChange={(event) => setSort(event.currentTarget.value as Sort)}
+              style={{ width: "auto" }}
+            >
+              <option value="newest">{t("links.sort.newest")}</option>
+              <option value="clicks">{t("links.sort.clicks")}</option>
+              <option value="az">{t("links.sort.az")}</option>
+            </select>
+          </div>
+
+          {visible.length === 0 ? (
+            <p className={styles.noMatch}>
+              {t("links.noMatch", { query: query.trim() })}
+            </p>
+          ) : (
+            <ul className={styles.list}>
+              {visible.map((link) => (
+                <LinkRow
+                  key={link.shortCode}
+                  link={link}
+                  expired={isExpired(link, now)}
+                  onEdit={() => setEditing(link)}
+                  onDelete={() => setDeleting(link)}
+                  onQr={() => setQrFor(link)}
+                />
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
-      <EditModal link={editing} onClose={() => setEditing(null)} />
-      <DeleteModal link={deleting} onClose={() => setDeleting(null)} />
-      <QrModal link={qrFor} onClose={() => setQrFor(null)} />
-    </Container>
+      <Dialog
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={t("links.edit")}
+      >
+        {editing && <EditForm link={editing} onClose={() => setEditing(null)} />}
+      </Dialog>
+      <Dialog
+        open={deleting !== null}
+        onClose={() => setDeleting(null)}
+        title={t("links.deleteTitle")}
+        width={420}
+      >
+        {deleting && (
+          <DeleteForm link={deleting} onClose={() => setDeleting(null)} />
+        )}
+      </Dialog>
+      <Dialog
+        open={qrFor !== null}
+        onClose={() => setQrFor(null)}
+        title={t("links.qr")}
+        width={360}
+      >
+        {qrFor && <QrPanel link={qrFor} />}
+      </Dialog>
+    </div>
   );
 }
 
 function LinkRow({
   link,
-  now,
+  expired,
   onEdit,
   onDelete,
   onQr,
 }: {
   link: ShortLink;
-  now: number;
+  expired: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onQr: () => void;
 }) {
   const { t, locale, localize } = useI18n();
-  const expired =
-    link.expirationDate !== null &&
-    new Date(`${link.expirationDate}Z`).getTime() <= now;
+  const destination = safeUrl(link.originalUrl);
+  const clicks = link.clickCount ?? 0;
 
   return (
-    <Paper withBorder radius="md" p="md">
-      <Group justify="space-between" wrap="nowrap" align="flex-start">
-        <Stack gap={2} miw={0} flex={1}>
-          <Group gap="xs" wrap="nowrap">
-            <Anchor
-              href={link.shortUrl}
-              target="_blank"
-              rel="noreferrer"
-              fw={600}
-              truncate
-            >
-              {displayUrl(link.shortUrl)}
-            </Anchor>
-            {expired && (
-              <Badge color="red" variant="light" size="sm">
-                {t("links.expired")}
-              </Badge>
-            )}
-          </Group>
-          <Text size="sm" c="dimmed" truncate title={link.originalUrl}>
-            {link.originalUrl}
-          </Text>
-          <Text size="xs" c="dimmed" mt={4}>
-            {t("links.created", { date: formatDate(link.createdAt, locale) })}
-            {link.expirationDate &&
-              !expired &&
-              ` · ${t("links.expires", { date: formatDateTime(link.expirationDate, locale) })}`}
-          </Text>
-        </Stack>
+    <li
+      className={styles.row}
+      data-color={colorFor(link.shortCode)}
+      data-expired={expired || undefined}
+    >
+      <div className={styles.rowMain}>
+        <div className={styles.rowTitle}>
+          <a
+            href={link.shortUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={styles.short}
+          >
+            <ShortUrl url={link.shortUrl} />
+          </a>
+          {expired && (
+            <span className="badge" data-tone="danger">
+              {t("links.expired")}
+            </span>
+          )}
+        </div>
+        <p className={`${styles.dest} truncate`} title={link.originalUrl}>
+          {destination ? (
+            <>
+              <b>{destination.host}</b>
+              {destination.rest}
+            </>
+          ) : (
+            link.originalUrl
+          )}
+        </p>
+        <p className={styles.meta}>
+          {t("links.created", { date: formatDate(link.createdAt, locale) })}
+          {link.expirationDate &&
+            !expired &&
+            ` · ${t("links.expires", { date: formatDateTime(link.expirationDate, locale) })}`}
+        </p>
+      </div>
 
-        <Stack gap={6} align="flex-end" style={{ flexShrink: 0 }}>
-          <Group gap={4} wrap="nowrap">
-            <Button
-              component={Link}
-              to={localize(`/links/${link.shortCode}`)}
-              size="xs"
-              variant="light"
-              leftSection={<IconChartBar size={14} />}
-            >
-              {t("links.clicks", { count: link.clickCount ?? 0 })}
-            </Button>
-            <Menu position="bottom-end" withinPortal>
-              <Menu.Target>
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  aria-label={t("links.actions")}
-                >
-                  <IconDotsVertical size={16} />
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item
-                  leftSection={<IconQrcode size={14} />}
-                  onClick={onQr}
-                >
-                  {t("links.qr")}
-                </Menu.Item>
-                <Menu.Item
-                  leftSection={<IconPencil size={14} />}
-                  onClick={onEdit}
-                >
-                  {t("links.edit")}
-                </Menu.Item>
-                <Menu.Item
-                  color="red"
-                  leftSection={<IconTrash size={14} />}
-                  onClick={onDelete}
-                >
-                  {t("links.delete")}
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
-          <CopyLinkButton value={link.shortUrl} />
-        </Stack>
-      </Group>
-    </Paper>
+      <Link
+        to={localize(`/links/${link.shortCode}`)}
+        className={styles.clicks}
+        aria-label={t("links.clicksLabel", { count: clicks })}
+      >
+        <span className={styles.clicksValue}>
+          {clicks.toLocaleString(locale)}
+        </span>
+        <span className={styles.clicksUnit}>
+          <IconChartBar size={13} />
+          {t("links.clicksUnit")}
+        </span>
+      </Link>
+
+      <div className={styles.actions}>
+        <CopyIconButton value={link.shortUrl} />
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={onQr}
+          aria-label={t("links.qr")}
+          title={t("links.qr")}
+        >
+          <IconQrcode size={17} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={onEdit}
+          aria-label={t("links.edit")}
+          title={t("links.edit")}
+        >
+          <IconPencil size={17} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          data-tone="danger"
+          onClick={onDelete}
+          aria-label={t("links.delete")}
+          title={t("links.delete")}
+        >
+          <IconTrash size={17} />
+        </button>
+      </div>
+    </li>
   );
 }
 
-/** Closes the modal once its form was saved. */
+function safeUrl(value: string) {
+  try {
+    const url = new URL(value);
+    const rest = url.pathname + url.search + url.hash;
+    return { host: url.host, rest: rest === "/" ? "" : rest };
+  } catch {
+    return null;
+  }
+}
+
+/** Closes the dialog once its form was saved. */
 function useSubmitAndClose(onClose: () => void) {
   const fetcher = useFetcher<ActionData>();
   useEffect(() => {
@@ -272,31 +360,10 @@ function FormError({ errors }: { errors: LinkFormErrors | null | undefined }) {
   const { t } = useI18n();
   if (!errors?.form) return null;
   return (
-    <Alert
-      color="red"
-      variant="light"
-      icon={<IconAlertCircle size={18} />}
-      role="alert"
-      py="xs"
-    >
+    <div className="alert" role="alert">
+      <IconAlertCircle size={18} />
       {t(errors.form)}
-    </Alert>
-  );
-}
-
-function EditModal({
-  link,
-  onClose,
-}: {
-  link: ShortLink | null;
-  onClose: () => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <Modal opened={link !== null} onClose={onClose} title={t("links.edit")}>
-      {/* keyed, so every opened link gets a fresh form and no stale errors */}
-      {link && <EditForm key={link.shortCode} link={link} onClose={onClose} />}
-    </Modal>
+    </div>
   );
 }
 
@@ -306,60 +373,59 @@ function EditForm({ link, onClose }: { link: ShortLink; onClose: () => void }) {
   const errors = fetcher.data?.ok === false ? fetcher.data.errors : null;
 
   return (
-    <fetcher.Form method="post" noValidate>
+    <fetcher.Form method="post" noValidate className={styles.dialogForm}>
       <input type="hidden" name="intent" value="update" />
       <input type="hidden" name="code" value={link.shortCode} />
-      <Stack gap="md">
-        <FormError errors={errors} />
-        <Text size="sm" c="dimmed">
-          {displayUrl(link.shortUrl)}
-        </Text>
-        <TextInput
+      <FormError errors={errors} />
+      <p className={styles.dialogCode}>
+        <ShortUrl url={link.shortUrl} />
+      </p>
+      <div className="field">
+        <label htmlFor="edit-url" className="field-label">
+          {t("home.form.label")}
+        </label>
+        <input
+          id="edit-url"
           name="url"
-          label={t("home.form.label")}
+          className="input"
           defaultValue={link.originalUrl}
-          error={errors?.url && t(errors.url)}
-          data-autofocus
+          aria-invalid={errors?.url ? true : undefined}
+          autoFocus
         />
-        <TextInput
+        {errors?.url && <p className="field-error">{t(errors.url)}</p>}
+      </div>
+      <div className="field">
+        <label htmlFor="edit-expires" className="field-label">
+          {t("links.expiresAt")}
+        </label>
+        <input
+          id="edit-expires"
           name="expiresAt"
           type="datetime-local"
-          label={t("links.expiresAt")}
-          description={t("links.expiresEditHint")}
+          className="input"
           defaultValue={toDateTimeInput(link.expirationDate)}
-          error={errors?.expiresAt && t(errors.expiresAt)}
+          aria-invalid={errors?.expiresAt ? true : undefined}
         />
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onClose}>
-            {t("links.cancel")}
-          </Button>
-          <Button type="submit" loading={fetcher.state !== "idle"}>
-            {t("links.save")}
-          </Button>
-        </Group>
-      </Stack>
+        {errors?.expiresAt ? (
+          <p className="field-error">{t(errors.expiresAt)}</p>
+        ) : (
+          <p className="field-hint">{t("links.expiresEditHint")}</p>
+        )}
+      </div>
+      <div className={styles.dialogActions}>
+        <button type="button" className="btn" onClick={onClose}>
+          {t("common.cancel")}
+        </button>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={fetcher.state !== "idle"}
+        >
+          {fetcher.state !== "idle" && <span className="spinner" aria-hidden />}
+          {t("common.save")}
+        </button>
+      </div>
     </fetcher.Form>
-  );
-}
-
-function DeleteModal({
-  link,
-  onClose,
-}: {
-  link: ShortLink | null;
-  onClose: () => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <Modal
-      opened={link !== null}
-      onClose={onClose}
-      title={t("links.deleteTitle")}
-    >
-      {link && (
-        <DeleteForm key={link.shortCode} link={link} onClose={onClose} />
-      )}
-    </Modal>
   );
 }
 
@@ -375,78 +441,58 @@ function DeleteForm({
   const errors = fetcher.data?.ok === false ? fetcher.data.errors : null;
 
   return (
-    <fetcher.Form method="post">
+    <fetcher.Form method="post" className={styles.dialogForm}>
       <input type="hidden" name="intent" value="delete" />
       <input type="hidden" name="code" value={link.shortCode} />
-      <Stack gap="md">
-        <FormError errors={errors} />
-        <Text size="sm">
-          {t("links.deleteText", { link: displayUrl(link.shortUrl) })}
-        </Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onClose}>
-            {t("links.cancel")}
-          </Button>
-          <Button type="submit" color="red" loading={fetcher.state !== "idle"}>
-            {t("links.delete")}
-          </Button>
-        </Group>
-      </Stack>
+      <FormError errors={errors} />
+      <p className="muted">
+        {t("links.deleteText", { link: displayUrl(link.shortUrl) })}
+      </p>
+      <div className={styles.dialogActions}>
+        <button type="button" className="btn" onClick={onClose} autoFocus>
+          {t("common.cancel")}
+        </button>
+        <button
+          type="submit"
+          className="btn btn-danger"
+          disabled={fetcher.state !== "idle"}
+        >
+          {fetcher.state !== "idle" && <span className="spinner" aria-hidden />}
+          {t("links.delete")}
+        </button>
+      </div>
     </fetcher.Form>
   );
 }
 
-function QrModal({
-  link,
-  onClose,
-}: {
-  link: ShortLink | null;
-  onClose: () => void;
-}) {
+function QrPanel({ link }: { link: ShortLink }) {
   const { t } = useI18n();
-  const [qr, setQr] = useState<string | null>(null);
-
-  useEffect(() => {
-    setQr(null);
-    if (!link) return;
-    let current = true;
-    createQrDataUrl(link.shortUrl).then((url) => current && setQr(url));
-    return () => {
-      current = false;
-    };
-  }, [link?.shortUrl]);
+  const qr = useQrCode(link.shortUrl);
 
   return (
-    <Modal
-      opened={link !== null}
-      onClose={onClose}
-      title={t("links.qr")}
-      size="auto"
-    >
-      {link && (
-        <Stack align="center" gap="md">
-          <Paper bg="white" p={6} radius="md" withBorder w={252} h={252}>
-            {qr && (
-              <Image
-                src={qr}
-                alt={t("home.form.qrAlt", { url: link.shortUrl })}
-                w={240}
-                h={240}
-              />
-            )}
-          </Paper>
-          <Text size="sm" c="dimmed">
-            {displayUrl(link.shortUrl)}
-          </Text>
-          <Button
-            leftSection={<IconDownload size={16} />}
-            disabled={!qr}
-            onClick={() => qr && downloadQrPng(qr, `qr-${link.shortCode}`)}
-          >
-            {t("home.form.downloadQr")}
-          </Button>
-        </Stack>
-      )}
-    </Modal>
+    <div className={styles.qrPanel}>
+      <div className={styles.qr}>
+        {qr && (
+          <img
+            src={qr}
+            alt={t("common.qrAlt", { url: link.shortUrl })}
+            width={240}
+            height={240}
+          />
+        )}
+      </div>
+      <p>
+        <ShortUrl url={link.shortUrl} />
+      </p>
+      <button
+        type="button"
+        className="btn btn-primary btn-block"
+        disabled={!qr}
+        onClick={() => qr && downloadQrPng(qr, `qr-${link.shortCode}`)}
+      >
+        <IconDownload size={17} />
+        {t("common.downloadQr")}
+      </button>
+    </div>
   );
 }

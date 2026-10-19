@@ -1,0 +1,240 @@
+.wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.form {
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.urlInput {
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  font-size: 16px;
+  border-radius: var(--radius);
+}
+
+.submit {
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  .row {
+    flex-direction: column;
+  }
+
+  .urlInput {
+    flex: none;
+  }
+}
+
+.optionsToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0 4px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.optionsToggle:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+  padding: 16px 4px 4px;
+  border-top: 1px dashed var(--line-strong);
+}
+
+.options[hidden] {
+  display: none;
+}
+
+.aliasInput {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.aliasInput:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.aliasInput span {
+  padding-left: 14px;
+  font-family: var(--mono);
+  color: var(--ink-3);
+}
+
+.aliasInput input {
+  border: 0;
+  padding-left: 2px;
+  background: transparent;
+}
+
+.aliasInput input:focus {
+  box-shadow: none;
+}
+
+/* ---- result: a ticket with a perforated stub holding the QR code ---- */
+
+.ticket {
+  --notch: 10px;
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: drop 220ms ease-out;
+}
+
+.ticketMain {
+  flex: 1;
+  min-width: 0;
+  padding: 20px 24px;
+}
+
+.ticketStub {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 20px 24px;
+  border-left: 2px dashed var(--line-strong);
+  background: var(--marigold-t);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+
+/* the two half-circle notches where the ticket tears */
+.ticketStub::before,
+.ticketStub::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--notch) * -1 - 1px);
+  width: calc(var(--notch) * 2);
+  height: calc(var(--notch) * 2);
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+
+.ticketStub::before {
+  top: calc(var(--notch) * -1 - 1px);
+  clip-path: inset(50% 0 0 0);
+}
+
+.ticketStub::after {
+  bottom: calc(var(--notch) * -1 - 1px);
+  clip-path: inset(0 0 50% 0);
+}
+
+.shortUrl {
+  display: block;
+  margin-top: 6px;
+  font-size: clamp(22px, 3.4vw, 30px);
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.shortUrl > span {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+
+.shortUrl:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+.original {
+  margin-top: 6px;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.note {
+  margin-top: 16px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.note a {
+  color: var(--accent);
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.qr {
+  width: 162px;
+  height: 162px;
+  padding: 6px;
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 600px) {
+  .ticket {
+    flex-direction: column;
+  }
+
+  .ticketStub {
+    border-left: 0;
+    border-top: 2px dashed var(--line-strong);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  }
+
+  .ticketStub::before,
+  .ticketStub::after {
+    top: calc(var(--notch) * -1 - 1px);
+    bottom: auto;
+  }
+
+  .ticketStub::before {
+    left: calc(var(--notch) * -1 - 1px);
+    clip-path: inset(0 0 0 50%);
+  }
+
+  .ticketStub::after {
+    left: auto;
+    right: calc(var(--notch) * -1 - 1px);
+    clip-path: inset(0 50% 0 0);
+  }
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}

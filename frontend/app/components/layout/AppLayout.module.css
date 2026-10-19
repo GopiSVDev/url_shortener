@@ -1,0 +1,185 @@
+.skip {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 50;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.skip:focus {
+  top: 12px;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  border-bottom: 1px solid var(--line);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  height: var(--header-h);
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+}
+
+.navLink {
+  position: relative;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  font-size: 15px;
+  font-weight: 550;
+  text-decoration: none;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.navLink:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.navLink:global(.active) {
+  color: var(--ink);
+}
+
+.navLink:global(.active)::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -13px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--t);
+  color: var(--i);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.username {
+  max-width: 160px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.menuButton {
+  display: none;
+}
+
+.mobileMenu {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .nav,
+  .desktopOnly {
+    display: none;
+  }
+
+  .menuButton {
+    display: inline-grid;
+  }
+
+  .mobileMenu {
+    display: grid;
+    gap: 12px;
+    padding: 8px var(--gutter) 16px;
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+  }
+
+  .mobileMenu nav {
+    display: grid;
+  }
+
+  .mobileMenu .navLink {
+    padding: 12px 8px;
+    font-size: 16px;
+  }
+
+  .mobileMenu .navLink:global(.active)::after {
+    left: 0;
+    right: auto;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    height: auto;
+  }
+
+  .mobileMenu .account {
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+
+  .mobileMenu .account form {
+    margin-left: auto;
+  }
+}
+
+.main {
+  flex: 1;
+}
+
+.footer {
+  margin-top: 64px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.footerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.swatches {
+  display: flex;
+  gap: 4px;
+}
+
+.swatches i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--c);
+}

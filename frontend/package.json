@@ -10,8 +10,8 @@
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
-    "@mantine/core": "^9.6.3",
-    "@mantine/hooks": "^9.6.3",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/schibsted-grotesk": "^5.3.0",
     "@react-router/node": "8.4.0",
     "@react-router/serve": "8.4.0",
     "@tabler/icons-react": "^3.48.0",
@@ -27,9 +27,6 @@
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "postcss": "^8.5.28",
-    "postcss-preset-mantine": "^1.18.0",
-    "postcss-simple-vars": "^7.0.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
     "vite-plugin-devtools-json": "^1.1.0"

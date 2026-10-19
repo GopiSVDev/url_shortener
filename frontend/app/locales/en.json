@@ -13,36 +13,44 @@
   },
   "nav": {
     "main": "Main navigation",
-    "home": "Home",
     "features": "Features",
-    "signedIn": "Signed in",
     "openMenu": "Open menu",
-    "toggleSidebar": "Toggle sidebar",
     "login": "Log in",
     "register": "Sign up",
     "logout": "Log out",
     "toggleTheme": "Toggle color scheme",
-    "language": "Language",
     "links": "My links",
-    "analytics": "Analytics"
+    "skip": "Skip to content"
   },
   "home": {
-    "title": "Short links that just work",
-    "subtitle": "Turn long, messy URLs into short links and QR codes you can share anywhere.",
+    "titleStart": "Long links in.",
+    "titleHighlight": "Short links out.",
+    "subtitle": "Paste any URL and get a short link and a QR code in a second. Sign in to keep them, edit them and see who clicks.",
     "form": {
       "label": "Long URL",
-      "placeholder": "Paste a long link, e.g. https://example.com/blog/post",
+      "placeholder": "Paste a long link, e.g. example.com/blog/a-very-long-post",
       "submit": "Shorten",
       "result": "Your short link",
-      "copy": "Copy",
-      "copied": "Copied",
-      "downloadQr": "Download QR",
-      "qrAlt": "QR code for {url}",
-      "options": "More options",
+      "options": "Custom alias and expiry",
       "saved": "Saved to your account.",
       "savedCta": "See all your links.",
       "anonymous": "Anyone can use this link.",
       "anonymousCta": "Create an account to edit it and see its clicks."
+    },
+    "steps": {
+      "title": "How it works",
+      "paste": {
+        "title": "Paste",
+        "text": "Drop in any web address. Pick your own ending like /spring-26 if you want one."
+      },
+      "share": {
+        "title": "Share",
+        "text": "Copy the short link or download its QR code for print, slides and packaging."
+      },
+      "measure": {
+        "title": "Measure",
+        "text": "See clicks per day, unique visitors, referrers, browsers and devices."
+      }
     },
     "allFeatures": "See all features"
   },
@@ -102,11 +110,18 @@
       "title": "Create your account",
       "subtitle": "Save your links, download QR codes and see how they perform.",
       "submit": "Create account"
-    }
+    },
+    "asideTitle": "One place for every link you share.",
+    "perks": {
+      "save": "Every link you shorten is saved to your account",
+      "qr": "A QR code for each link, ready to download",
+      "stats": "Clicks per day, referrers, browsers and devices"
+    },
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "links": {
     "title": "My links",
-    "count": "{count} links",
     "new": "New link",
     "emptyTitle": "No links yet",
     "emptyText": "Shorten your first link and it will show up here.",
@@ -118,16 +133,28 @@
     "expired": "Expired",
     "created": "Created {date}",
     "expires": "expires {date}",
-    "clicks": "{count} clicks",
-    "actions": "Link actions",
     "qr": "QR code",
     "edit": "Edit link",
     "delete": "Delete",
     "deleteTitle": "Delete link?",
     "deleteText": "{link} will stop working and its click history will be deleted. This can't be undone.",
-    "cancel": "Cancel",
-    "save": "Save",
-    "viewStats": "View stats"
+    "viewStats": "View stats",
+    "subtitle": "Everything you have shortened, with its clicks.",
+    "stats": {
+      "links": "Links",
+      "clicks": "Total clicks",
+      "active": "Active"
+    },
+    "search": "Search by code or destination",
+    "sort": {
+      "label": "Sort links",
+      "newest": "Newest first",
+      "clicks": "Most clicks",
+      "az": "Code A–Z"
+    },
+    "noMatch": "No links match “{query}”.",
+    "clicksLabel": "{count} clicks, view stats",
+    "clicksUnit": "clicks"
   },
   "analytics": {
     "back": "My links",
@@ -144,7 +171,10 @@
     "browsers": "Browsers",
     "operatingSystems": "Operating systems",
     "devices": "Devices",
-    "noData": "No clicks in this period"
+    "noData": "No clicks in this period",
+    "period": "Time period",
+    "clicksOn": "clicks on {date}",
+    "clicksInPeriod": "clicks in the last {days} days"
   },
   "errors": {
     "usernameRequired": "Enter your username",
@@ -174,5 +204,14 @@
   },
   "footer": {
     "copyright": "© {year} {name}"
+  },
+  "common": {
+    "copy": "Copy",
+    "copied": "Copied",
+    "downloadQr": "Download QR",
+    "qrAlt": "QR code for {url}",
+    "cancel": "Cancel",
+    "save": "Save changes",
+    "close": "Close"
   }
 }

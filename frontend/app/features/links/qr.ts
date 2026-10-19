@@ -1,12 +1,29 @@
+import { useEffect, useState } from "react";
 import type { QrCodeGenerateResult } from "uqr";
 
-const GRADIENT = ["#5f3dc4", "#1971c2", "#0c8599"];
+// Dark ends of the tomato, plum and cobalt labels: colorful but still high contrast on white
+const GRADIENT = ["#a8401f", "#6e3468", "#2a438c"];
 const QUIET_ZONE = 2;
 const TRACE_WIDTH = 0.36;
 const PAD_RADIUS = 0.42;
 
 const POSITION = 2;
 const ALIGNMENT = 4;
+
+/** QR code data URL for `value`, or null while it renders (the encoder loads on first use). */
+export function useQrCode(value: string | undefined) {
+  const [qr, setQr] = useState<string | null>(null);
+  useEffect(() => {
+    setQr(null);
+    if (!value) return;
+    let current = true;
+    createQrDataUrl(value).then((url) => current && setQr(url));
+    return () => {
+      current = false;
+    };
+  }, [value]);
+  return qr;
+}
 
 export async function createQrDataUrl(value: string) {
   const { encode } = await import("uqr");

@@ -1,4 +1,3 @@
-import { Button, Code } from "@mantine/core";
 import { IconArrowLeft } from "@tabler/icons-react";
 import { Link, useLocation } from "react-router";
 import { ErrorState } from "~/components/ErrorState";
@@ -17,26 +16,28 @@ export function NotFoundPage() {
         title={t("errors.notFoundTitle")}
         description={t("errors.notFoundText")}
         detail={
-          <Code fz="sm" maw="100%" style={{ overflowWrap: "anywhere" }}>
+          <code
+            style={{
+              display: "inline-block",
+              maxWidth: "100%",
+              padding: "4px 10px",
+              borderRadius: 6,
+              background: "var(--surface-2)",
+              overflowWrap: "anywhere",
+            }}
+          >
             {pathname}
-          </Code>
+          </code>
         }
         actions={
           <>
-            <Button
-              component={Link}
-              to={localize("/")}
-              leftSection={<IconArrowLeft size={16} />}
-            >
+            <Link to={localize("/")} className="btn btn-primary">
+              <IconArrowLeft size={17} />
               {t("errors.backHome")}
-            </Button>
-            <Button
-              component={Link}
-              to={localize("/features")}
-              variant="default"
-            >
+            </Link>
+            <Link to={localize("/features")} className="btn">
               {t("nav.features")}
-            </Button>
+            </Link>
           </>
         }
       />

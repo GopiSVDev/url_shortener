@@ -1,19 +1,112 @@
-/* Only what Mantine props can't express: hover and active states. */
+.wrap {
+  display: grid;
+  place-items: center;
+  padding-block: clamp(32px, 8vh, 80px);
+}
 
-/* Color lives here, not in a `c` prop, so :hover can override it. */
+.card {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  width: min(820px, 100%);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.aside {
+  padding: 36px 32px;
+  background: var(--marigold-t);
+  color: var(--marigold-i);
+}
+
+.aside h2 {
+  font-size: 24px;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.aside ul {
+  display: grid;
+  gap: 14px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aside li {
+  display: flex;
+  gap: 12px;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.aside li span {
+  width: 10px;
+  height: 10px;
+  margin-top: 7px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  background: var(--c);
+}
+
+.main {
+  padding: 28px 36px 36px;
+}
+
+@media (max-width: 720px) {
+  .card {
+    grid-template-columns: 1fr;
+  }
+
+  .aside {
+    display: none;
+  }
+
+  .main {
+    padding: 20px;
+  }
+}
+
+.tabs {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
 .tab {
-  color: var(--mantine-color-dimmed);
+  padding: 6px 16px;
+  border-radius: 7px;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
   transition:
     color 120ms ease,
     background-color 120ms ease;
+}
 
-  &:hover {
-    color: var(--mantine-color-text);
-  }
+.tab:hover {
+  color: var(--ink);
+}
 
-  &[aria-current="page"] {
-    color: var(--mantine-color-text);
-    background-color: var(--app-surface-raised);
-    box-shadow: var(--mantine-shadow-xs);
-  }
+.tab:global(.active) {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.title {
+  margin-top: 24px;
+  margin-bottom: 4px;
+  font-size: clamp(26px, 3.5vw, 32px);
+  letter-spacing: -0.03em;
+}
+
+.form {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
 }

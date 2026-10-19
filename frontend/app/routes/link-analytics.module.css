@@ -1,0 +1,328 @@
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 28px;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--accent);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.headText {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.head h1 {
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+
+.dest {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin-top: 4px;
+  color: var(--ink-3);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.dest:hover {
+  color: var(--ink);
+}
+
+.dest svg {
+  flex-shrink: 0;
+}
+
+/* segmented control made of links, so it works before JS loads */
+.periods {
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.periods a {
+  padding: 6px 12px;
+  border-radius: 7px;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.periods a:hover {
+  color: var(--ink);
+}
+
+.periods a[aria-current="page"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---- tiles ---- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 24px 0 0;
+}
+
+@media (max-width: 760px) {
+  .tiles {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.tile {
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--c);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.tile dt {
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tile dd {
+  margin: 6px 0 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.tile dd[data-small] {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+
+/* ---- panels ---- */
+
+.panel {
+  margin-top: 12px;
+  padding: 20px;
+}
+
+.panelTitle,
+.chartHead h2 {
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.chartHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.readout {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.readout b {
+  color: var(--ink);
+  font-size: 18px;
+}
+
+/* ---- bar chart ---- */
+
+.chart {
+  position: relative;
+  height: 200px;
+  margin-top: 20px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.maxLine {
+  position: absolute;
+  inset: 0 0 auto 0;
+  border-top: 1px dashed var(--line);
+}
+
+.maxLine::after {
+  content: attr(data-value);
+  position: absolute;
+  left: 0;
+  top: -18px;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 3px;
+}
+
+.bars[data-dense] {
+  gap: 1px;
+}
+
+/* full-height column: the hover target is the whole slot, not just the bar */
+.col {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+  border-radius: 4px 4px 0 0;
+  cursor: default;
+}
+
+.col[data-active] {
+  background: color-mix(in srgb, var(--tomato-c) 10%, transparent);
+}
+
+.bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: var(--tomato-c);
+  transition: opacity 120ms ease;
+}
+
+.bars[data-dense] .bar {
+  border-radius: 2px 2px 0 0;
+}
+
+.bar[data-zero] {
+  height: 2px;
+  border-radius: 0;
+  background: var(--line-strong);
+}
+
+.bars:hover .col:not([data-active]) .bar:not([data-zero]) {
+  opacity: 0.55;
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.footnote {
+  margin-top: 14px;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+/* ---- breakdowns ---- */
+
+.breakdowns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .breakdowns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.breakdowns .panel {
+  margin-top: 0;
+}
+
+.breakdowns {
+  margin-top: 12px;
+}
+
+.panelTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panelTitle::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--c);
+}
+
+.noData {
+  margin-top: 12px;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.breakdown {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.breakdownRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.breakdownValue {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.breakdownValue small {
+  display: inline-block;
+  min-width: 40px;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.track {
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.track div {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--c);
+}

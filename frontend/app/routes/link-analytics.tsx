@@ -1,33 +1,18 @@
-import {
-  Anchor,
-  Box,
-  Container,
-  Group,
-  Paper,
-  Progress,
-  SegmentedControl,
-  SimpleGrid,
-  Stack,
-  Text,
-  Title,
-  Tooltip,
-} from "@mantine/core";
-import { IconArrowLeft } from "@tabler/icons-react";
-import { data, Link, useNavigate } from "react-router";
+import { useState } from "react";
+import { IconArrowLeft, IconExternalLink } from "@tabler/icons-react";
+import { data, Link } from "react-router";
 import type { Route } from "./+types/link-analytics";
 import { ApiError } from "~/.server/api";
-import { accent } from "~/app-theme";
-import type { RouteHandle } from "~/components/layout/AppLayout";
 import { Seo } from "~/components/Seo";
 import { authContext, requireUser } from "~/.server/auth/session";
 import { formatDate, formatDateTime } from "~/features/links/format";
 import { getAnalytics, type LinkAnalytics } from "~/.server/links/links-api";
+import type { LabelColor } from "~/lib/color";
 import { useI18n } from "~/lib/i18n/i18n";
 import type { MessageKey } from "~/lib/i18n/locales";
+import styles from "./link-analytics.module.css";
 
 export const middleware: Route.MiddlewareFunction[] = [requireUser];
-
-export const handle: RouteHandle = { title: "nav.analytics" };
 
 const PERIODS = ["7", "30", "90"];
 
@@ -51,52 +36,68 @@ export default function LinkAnalyticsPage({
   loaderData,
 }: Route.ComponentProps) {
   const { t, locale, localize } = useI18n();
-  const navigate = useNavigate();
   const { stats } = loaderData;
 
   return (
-    <Container size="lg" py={{ base: 32, sm: 48 }}>
+    <div className="page">
       <Seo
         title={t("meta.analyticsTitle", { code: stats.shortCode })}
         noIndex
       />
 
-      <Anchor component={Link} to={localize("/links")} size="sm" c="dimmed">
-        <Group gap={4}>
-          <IconArrowLeft size={14} />
-          {t("analytics.back")}
-        </Group>
-      </Anchor>
+      <Link to={localize("/links")} className={styles.back}>
+        <IconArrowLeft size={16} />
+        {t("analytics.back")}
+      </Link>
 
-      <Group justify="space-between" align="flex-end" mt="sm" mb="lg">
-        <Box miw={0}>
-          <Title order={1} fz={{ base: 26, sm: 30 }}>
-            /{stats.shortCode}
-          </Title>
-          <Text c="dimmed" size="sm" truncate title={stats.originalUrl}>
-            {stats.originalUrl}
-          </Text>
-        </Box>
-        <SegmentedControl
-          value={String(stats.days)}
-          onChange={(days) =>
-            navigate(`?days=${days}`, { preventScrollReset: true })
-          }
-          data={PERIODS.map((days) => ({
-            value: days,
-            label: t("analytics.lastDays", { days }),
-          }))}
+      <header className={styles.head}>
+        <div className={styles.headText}>
+          <h1 className="mono">/{stats.shortCode}</h1>
+          <a
+            href={stats.originalUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={styles.dest}
+            title={stats.originalUrl}
+          >
+            <span className="truncate">{stats.originalUrl}</span>
+            <IconExternalLink size={14} />
+          </a>
+        </div>
+
+        <nav className={styles.periods} aria-label={t("analytics.period")}>
+          {PERIODS.map((days) => (
+            <Link
+              key={days}
+              to={`?days=${days}`}
+              replace
+              preventScrollReset
+              aria-current={String(stats.days) === days ? "page" : undefined}
+            >
+              {t("analytics.lastDays", { days })}
+            </Link>
+          ))}
+        </nav>
+      </header>
+
+      <dl className={styles.tiles}>
+        <Tile
+          color="tomato"
+          label={t("analytics.periodClicks")}
+          value={stats.periodClicks.toLocaleString(locale)}
         />
-      </Group>
-
-      <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
-        <Stat label={t("analytics.periodClicks")} value={stats.periodClicks} />
-        <Stat
+        <Tile
+          color="jade"
           label={t("analytics.uniqueVisitors")}
-          value={stats.uniqueVisitors}
+          value={stats.uniqueVisitors.toLocaleString(locale)}
         />
-        <Stat label={t("analytics.totalClicks")} value={stats.totalClicks} />
-        <Stat
+        <Tile
+          color="cobalt"
+          label={t("analytics.totalClicks")}
+          value={stats.totalClicks.toLocaleString(locale)}
+        />
+        <Tile
+          color="marigold"
           label={t("analytics.lastClick")}
           value={
             stats.lastClickedAt
@@ -105,145 +106,194 @@ export default function LinkAnalyticsPage({
           }
           small
         />
-      </SimpleGrid>
+      </dl>
 
-      <Paper withBorder radius="md" p="md" mt="sm">
-        <Text fw={600} mb="md">
-          {t("analytics.clicksPerDay")}
-        </Text>
-        <ClicksChart days={stats.clicksPerDay} />
-        {stats.botClicks > 0 && (
-          <Text size="xs" c="dimmed" mt="sm">
-            {t("analytics.botsExcluded", { count: stats.botClicks })}
-          </Text>
-        )}
-      </Paper>
+      <section className={`card ${styles.panel}`}>
+        <ClicksChart
+          days={stats.clicksPerDay}
+          total={stats.periodClicks}
+          botClicks={stats.botClicks}
+        />
+      </section>
 
-      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm" mt="sm">
+      <div className={styles.breakdowns}>
         <Breakdown
           title="analytics.referrers"
+          color="tomato"
           items={stats.referrers}
           total={stats.periodClicks}
         />
         <Breakdown
           title="analytics.browsers"
+          color="cobalt"
           items={stats.browsers}
           total={stats.periodClicks}
         />
         <Breakdown
           title="analytics.operatingSystems"
+          color="jade"
           items={stats.operatingSystems}
           total={stats.periodClicks}
         />
         <Breakdown
           title="analytics.devices"
+          color="plum"
           items={stats.devices}
           total={stats.periodClicks}
         />
-      </SimpleGrid>
-    </Container>
+      </div>
+    </div>
   );
 }
 
-function Stat({
+function Tile({
+  color,
   label,
   value,
   small,
 }: {
+  color: LabelColor;
   label: string;
-  value: number | string;
+  value: string;
   small?: boolean;
 }) {
-  const { locale } = useI18n();
   return (
-    <Paper withBorder radius="md" p="md">
-      <Text size="xs" c="dimmed" fw={500} tt="uppercase">
-        {label}
-      </Text>
-      <Text fw={700} fz={small ? "md" : 28} mt={4} lh={1.2}>
-        {typeof value === "number" ? value.toLocaleString(locale) : value}
-      </Text>
-    </Paper>
+    <div className={styles.tile} data-color={color}>
+      <dt>{label}</dt>
+      <dd data-small={small || undefined}>{value}</dd>
+    </div>
   );
 }
 
-function ClicksChart({ days }: { days: LinkAnalytics["clicksPerDay"] }) {
+function ClicksChart({
+  days,
+  total,
+  botClicks,
+}: {
+  days: LinkAnalytics["clicksPerDay"];
+  total: number;
+  botClicks: number;
+}) {
   const { t, locale } = useI18n();
+  const [active, setActive] = useState<number | null>(null);
   const max = Math.max(1, ...days.map((day) => day.clicks));
-  const gap = days.length > 31 ? 1 : 3;
+  const hovered = active === null ? null : days[active];
+  const middle = Math.floor((days.length - 1) / 2);
 
   return (
     <>
-      <Group h={160} gap={gap} align="flex-end" wrap="nowrap">
-        {days.map((day) => (
-          <Tooltip
-            key={day.date}
-            label={t("analytics.dayTooltip", {
-              date: formatDate(day.date, locale),
-              count: day.clicks,
-            })}
-          >
-            <Box
-              flex={1}
-              h={`${Math.max((day.clicks / max) * 100, day.clicks ? 2 : 0.5)}%`}
-              bg={day.clicks ? accent : "var(--mantine-color-default-border)"}
-              style={{ borderRadius: 2, minWidth: 1 }}
-            />
-          </Tooltip>
-        ))}
-      </Group>
-      <Group justify="space-between" mt={6}>
-        <Text size="xs" c="dimmed">
-          {formatDate(days[0].date, locale)}
-        </Text>
-        <Text size="xs" c="dimmed">
-          {formatDate(days[days.length - 1].date, locale)}
-        </Text>
-      </Group>
+      <div className={styles.chartHead}>
+        <h2>{t("analytics.clicksPerDay")}</h2>
+        {/* The readout doubles as the tooltip: hovered day, or the period total */}
+        <p className={styles.readout} aria-live="polite">
+          {hovered ? (
+            <>
+              <b>{hovered.clicks.toLocaleString(locale)}</b>{" "}
+              {t("analytics.clicksOn", { date: formatDate(hovered.date, locale) })}
+            </>
+          ) : (
+            <>
+              <b>{total.toLocaleString(locale)}</b>{" "}
+              {t("analytics.clicksInPeriod", { days: days.length })}
+            </>
+          )}
+        </p>
+      </div>
+
+      <div className={styles.chart} onMouseLeave={() => setActive(null)}>
+        <span className={styles.maxLine} data-value={max.toLocaleString(locale)} />
+        <div
+          className={styles.bars}
+          data-dense={days.length > 31 || undefined}
+          aria-hidden
+        >
+          {days.map((day, i) => (
+            <div
+              key={day.date}
+              className={styles.col}
+              data-active={active === i || undefined}
+              onMouseEnter={() => setActive(i)}
+              onClick={() => setActive(i)}
+            >
+              <div
+                className={styles.bar}
+                data-zero={day.clicks === 0 || undefined}
+                style={{
+                  height: day.clicks
+                    ? `max(4px, ${(day.clicks / max) * 100}%)`
+                    : undefined,
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className={styles.axis} aria-hidden>
+        <span>{formatDate(days[0].date, locale)}</span>
+        <span>{formatDate(days[middle].date, locale)}</span>
+        <span>{formatDate(days[days.length - 1].date, locale)}</span>
+      </div>
+
+      {/* Same data for screen readers */}
+      <table className="visually-hidden">
+        <caption>{t("analytics.clicksPerDay")}</caption>
+        <tbody>
+          {days.map((day) => (
+            <tr key={day.date}>
+              <th scope="row">{formatDate(day.date, locale)}</th>
+              <td>{day.clicks}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {botClicks > 0 && (
+        <p className={styles.footnote}>
+          {t("analytics.botsExcluded", { count: botClicks })}
+        </p>
+      )}
     </>
   );
 }
 
 function Breakdown({
   title,
+  color,
   items,
   total,
 }: {
   title: MessageKey;
+  color: LabelColor;
   items: LinkAnalytics["referrers"];
   total: number;
 }) {
   const { t, locale } = useI18n();
   return (
-    <Paper withBorder radius="md" p="md">
-      <Text fw={600} mb="sm">
-        {t(title)}
-      </Text>
+    <section className={`card ${styles.panel}`} data-color={color}>
+      <h2 className={styles.panelTitle}>{t(title)}</h2>
       {items.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          {t("analytics.noData")}
-        </Text>
+        <p className={styles.noData}>{t("analytics.noData")}</p>
       ) : (
-        <Stack gap="xs">
-          {items.map((item) => (
-            <div key={item.name}>
-              <Group justify="space-between" wrap="nowrap" gap="sm">
-                <Text size="sm" truncate>
-                  {item.name}
-                </Text>
-                <Text size="sm" c="dimmed" style={{ flexShrink: 0 }}>
-                  {item.clicks.toLocaleString(locale)}
-                </Text>
-              </Group>
-              <Progress
-                value={total ? (item.clicks / total) * 100 : 0}
-                size="sm"
-                mt={4}
-              />
-            </div>
-          ))}
-        </Stack>
+        <ul className={styles.breakdown}>
+          {items.map((item) => {
+            const share = total ? (item.clicks / total) * 100 : 0;
+            return (
+              <li key={item.name}>
+                <div className={styles.breakdownRow}>
+                  <span className="truncate">{item.name}</span>
+                  <span className={styles.breakdownValue}>
+                    {item.clicks.toLocaleString(locale)}
+                    <small>{Math.round(share)}%</small>
+                  </span>
+                </div>
+                <div className={styles.track}>
+                  <div style={{ width: `${share}%` }} />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
-    </Paper>
+    </section>
   );
 }

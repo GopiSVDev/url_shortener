@@ -1,4 +1,3 @@
-import { Button } from "@mantine/core";
 import {
   data,
   isRouteErrorResponse,
@@ -40,7 +39,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   if (isRouteErrorResponse(error) && error.status === 404) {
     return (
-      <AppLayout title={t("errors.notFoundTitle")}>
+      <AppLayout>
         <NotFoundPage />
       </AppLayout>
     );
@@ -48,16 +47,16 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   const title = t("errors.unexpectedTitle");
   return (
-    <AppLayout title={title}>
+    <AppLayout>
       <Seo title={title} noIndex />
       <ErrorState
         status={500}
         title={title}
         description={t("errors.unexpectedText")}
         actions={
-          <Button component={Link} to={localize("/")}>
+          <Link to={localize("/")} className="btn btn-primary">
             {t("errors.backHome")}
-          </Button>
+          </Link>
         }
       />
     </AppLayout>

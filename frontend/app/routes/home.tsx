@@ -1,9 +1,7 @@
-import { Anchor, Container, Stack, Text, Title } from "@mantine/core";
 import { IconArrowRight } from "@tabler/icons-react";
 import { data, Link } from "react-router";
 import type { Route } from "./+types/home";
 import { parseForm } from "~/.server/form";
-import type { RouteHandle } from "~/components/layout/AppLayout";
 import { Seo } from "~/components/Seo";
 import { site } from "~/config/site";
 import { authContext } from "~/.server/auth/session";
@@ -13,11 +11,11 @@ import {
   ShortenForm,
   type ShortenActionData,
 } from "~/features/links/ShortenForm";
+import type { LabelColor } from "~/lib/color";
 import { useI18n } from "~/lib/i18n/i18n";
 import { localizePath } from "~/lib/i18n/locales";
 import { useRootData } from "~/lib/root-data";
-
-export const handle: RouteHandle = { title: "nav.home" };
+import styles from "./home.module.css";
 
 export async function action({ request, context }: Route.ActionArgs) {
   const form = await parseForm(request, linkFormSchema);
@@ -45,6 +43,12 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
+const steps: { key: "paste" | "share" | "measure"; color: LabelColor }[] = [
+  { key: "paste", color: "tomato" },
+  { key: "share", color: "jade" },
+  { key: "measure", color: "cobalt" },
+];
+
 export default function Home() {
   const { t, locale, localize } = useI18n();
   const { siteUrl } = useRootData();
@@ -70,39 +74,36 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <Container
-        size="sm"
-        py={{ base: 48, sm: 72 }}
-        display="flex"
-        mih="calc(100dvh - 160px)"
-        style={{ flexDirection: "column", justifyContent: "center" }}
-      >
-        <Stack gap="lg" ta="center" mb={40}>
-          <Title order={1} style={{ letterSpacing: "-0.02em" }}>
-            {t("home.title")}
-          </Title>
-          <Text size="lg" c="dimmed" maw={520} mx="auto">
-            {t("home.subtitle")}
-          </Text>
-        </Stack>
+      <div className={`page ${styles.hero}`}>
+        <h1 className={styles.title}>
+          {t("home.titleStart")}{" "}
+          <span className={styles.highlight}>{t("home.titleHighlight")}</span>
+        </h1>
+        <p className={styles.subtitle}>{t("home.subtitle")}</p>
 
-        <ShortenForm />
+        <div className={styles.formSlot}>
+          <ShortenForm />
+        </div>
+      </div>
 
-        <Text ta="center" mt="xl" size="sm">
-          <Anchor
-            component={Link}
-            to={localize("/features")}
-            c="dimmed"
-            inherit
-          >
-            {t("home.allFeatures")}
-            <IconArrowRight
-              size={14}
-              style={{ verticalAlign: "-2px", marginInlineStart: 4 }}
-            />
-          </Anchor>
-        </Text>
-      </Container>
+      <section className="page" aria-labelledby="steps-title">
+        <h2 id="steps-title" className="visually-hidden">
+          {t("home.steps.title")}
+        </h2>
+        <ol className={styles.steps}>
+          {steps.map(({ key, color }, i) => (
+            <li key={key} data-color={color} className={styles.step}>
+              <span className={styles.stepNumber}>0{i + 1}</span>
+              <h3>{t(`home.steps.${key}.title`)}</h3>
+              <p>{t(`home.steps.${key}.text`)}</p>
+            </li>
+          ))}
+        </ol>
+        <Link to={localize("/features")} className={styles.more}>
+          {t("home.allFeatures")}
+          <IconArrowRight size={16} />
+        </Link>
+      </section>
     </>
   );
 }
