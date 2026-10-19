@@ -1,0 +1,27 @@
+# The only public entry point. Short links (/abc123) go straight to the backend, everything else to the
+# frontend. Set SITE_ADDRESS to a domain (e.g. links.example.com) and Caddy gets an HTTPS certificate by itself.
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# One path segment of letters, digits and hyphens is a short code, unless it is a frontend page.
+	# Keep this list in sync with frontend/app/routes.ts and UrlService.RESERVED_ALIASES.
+	@shortLink {
+		path_regexp ^/[A-Za-z0-9-]+$
+		not path /features /login /register /links /logout /en
+	}
+
+	handle @shortLink {
+		reverse_proxy backend:4000 {
+			# Unknown or expired code: show the frontend's 404 page instead of the backend's JSON error
+			@missing status 404 410
+			handle_response @missing {
+				reverse_proxy frontend:8000
+			}
+		}
+	}
+
+	# The backend API and actuator are only reachable inside the Docker network.
+	handle {
+		reverse_proxy frontend:8000
+	}
+}

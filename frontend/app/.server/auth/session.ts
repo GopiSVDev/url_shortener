@@ -25,7 +25,7 @@ const storage = createCookieSessionStorage<Tokens>({
     name: "__session",
     httpOnly: true,
     sameSite: "lax",
-    secure: env.isProd,
+    secure: env.secureCookies,
     path: "/",
     secrets: [env.sessionSecret],
   },

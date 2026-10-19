@@ -1,0 +1,43 @@
+# Production overrides: only the Caddy proxy is published, Postgres and the backend stay on the internal network.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# PUBLIC_URL is the address people use (short links are built from it), e.g. http://10.24.21.249 or
+# https://links.example.com. For HTTPS also set SITE_ADDRESS to the domain.
+services:
+  postgres:
+    ports: !reset []
+
+  backend:
+    ports: !reset []
+    environment:
+      APP_BASE_URL: ${PUBLIC_URL:?set PUBLIC_URL}
+      RATE_LIMIT_ENABLED: "true"
+      # Only health inside the network; Prometheus is not used in production
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health
+
+  frontend:
+    ports: !reset []
+    environment:
+      SITE_URL: ${PUBLIC_URL:?set PUBLIC_URL}
+
+  # database admin UI: start it only when needed with --profile tools
+  pgadmin:
+    profiles: [tools]
+
+  proxy:
+    image: caddy:2.10-alpine
+    container_name: url-shortener-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      frontend:
+        condition: service_healthy
+
+volumes:
+  caddy_data:

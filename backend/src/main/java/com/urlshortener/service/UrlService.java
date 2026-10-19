@@ -56,7 +56,9 @@ public class UrlService {
             where s.user_id = ?
             """;
 
-    private static final Set<String> RESERVED_ALIASES = Set.of("api", "actuator", "error");
+    // Paths the proxy sends to the frontend (deploy/Caddyfile), so a link with this alias could never be opened
+    private static final Set<String> RESERVED_ALIASES = Set.of("api", "actuator", "error",
+            "features", "login", "register", "links", "logout", "en");
 
     private final ShortUrlRepository shortUrlRepository;
     private final UserRepository userRepository;

@@ -21,7 +21,7 @@ Built with Spring Boot 4 (Java 25), PostgreSQL and React Router, and load tested
 | Layer          | Technologies                                                                           |
 | -------------- | -------------------------------------------------------------------------------------- |
 | Backend        | Java 25, Spring Boot 4, Spring Security (JWT), Spring Data JPA, JdbcTemplate, Caffeine |
-| Frontend       | React 19, React Router 8 (server-side rendering), Mantine, Zod                         |
+| Frontend       | React 19, React Router 8 (server-side rendering), plain CSS modules, Zod               |
 | Database       | PostgreSQL 16                                                                          |
 | Testing        | JUnit 5, Testcontainers, MockMvc, k6, async-profiler                                   |
 | Infrastructure | Docker Compose, LXD VM and Prometheus (load testing only)                              |
@@ -156,6 +156,17 @@ Once the containers are healthy:
 | Backend API and short links | http://localhost:4000 |
 | pgAdmin                     | http://localhost:5050 |
 
+### Run in production
+
+```bash
+PUBLIC_URL=http://your-server docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+Only the Caddy proxy is published (ports 80 and 443). It sends short links (`/{code}`) to the backend and
+everything else to the frontend; Postgres, the backend API and pgAdmin stay on the internal network.
+`PUBLIC_URL` is the address short links are built from. With a domain, also set `SITE_ADDRESS=your-domain.com`
+and `PUBLIC_URL=https://your-domain.com`; Caddy then gets and renews the HTTPS certificate itself.
+
 ### Run the tests
 
 ```bash
@@ -188,7 +199,9 @@ cd frontend && pnpm typecheck && pnpm build
 │       ├── entity/      JPA entities (the database schema)
 │       └── security/    JWT authentication, rate limiting
 ├── frontend/            React Router app
+├── deploy/              Caddyfile for the production proxy
 ├── loadtest/            k6 scripts, capacity finder, profiling script, results
 ├── monitoring/          Prometheus and PostgreSQL config for load testing
-└── docker-compose.yml
+├── docker-compose.yml
+└── docker-compose.prod.yml   production overrides (proxy only exposed)
 ```
